@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+	<AddIn Type="Application">
+		<Name>NMKMTO</Name>
+		<Assembly>NMKMTO.dll</Assembly>
+		<FullClassName>NMKMTOTools.NMKMTOApp</FullClassName>
+		<AddInId>49A15C5E-4FD6-4A20-B217-BFAC57C5FCCC</AddInId>
+		<Text>NMKMTO</Text>
+		<VisibilityMode>AlwaysVisible</VisibilityMode>
+		<LanguageType>Unknown</LanguageType>
+		<VendorId>NMKMTO</VendorId>
+		<VendorDescription>https://NMKMTO.com.au/</VendorDescription>
+	</AddIn>
+</RevitAddIns>

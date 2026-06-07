@@ -1,0 +1,700 @@
+<Window
+  x:Class="NMKMTO.NMKMTO_Window"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+  mc:Ignorable="d"
+  Title="NMKMTO"
+  Height="920"
+  Width="1500"
+  MinHeight="920"
+  MinWidth="1500"
+  Background="#F5F5F7"
+  FontFamily="Segoe UI"
+  FontSize="13"
+  Name="window"
+  WindowStartupLocation="CenterOwner"
+  Loaded="Window_Loaded">
+  <Window.Resources>
+    <SolidColorBrush
+      x:Key="InkBrush"
+      Color="#1D1D1F" />
+    <SolidColorBrush
+      x:Key="MutedBrush"
+      Color="#6E6E73" />
+    <SolidColorBrush
+      x:Key="LineBrush"
+      Color="#D2D2D7" />
+    <SolidColorBrush
+      x:Key="PanelBrush"
+      Color="#FFFFFF" />
+    <SolidColorBrush
+      x:Key="AccentBrush"
+      Color="#30D158" />
+    <SolidColorBrush
+      x:Key="AccentDarkBrush"
+      Color="#248A3D" />
+    <SolidColorBrush
+      x:Key="NeutralButtonBrush"
+      Color="#E9E9EF" />
+    <SolidColorBrush
+      x:Key="NeutralButtonHoverBrush"
+      Color="#DADAE0" />
+    <Style
+      TargetType="TextBlock">
+      <Setter
+        Property="Foreground"
+        Value="{StaticResource InkBrush}" />
+      <Setter
+        Property="VerticalAlignment"
+        Value="Center" />
+    </Style>
+    <Style
+      x:Key="SectionTitle"
+      TargetType="TextBlock">
+      <Setter
+        Property="FontSize"
+        Value="12" />
+      <Setter
+        Property="FontWeight"
+        Value="SemiBold" />
+      <Setter
+        Property="Foreground"
+        Value="{StaticResource MutedBrush}" />
+      <Setter
+        Property="Margin"
+        Value="0,0,0,8" />
+    </Style>
+    <Style
+      TargetType="TextBox">
+      <Setter
+        Property="Height"
+        Value="36" />
+      <Setter
+        Property="Padding"
+        Value="12,7" />
+      <Setter
+        Property="Foreground"
+        Value="{StaticResource InkBrush}" />
+      <Setter
+        Property="Background"
+        Value="#FFFFFF" />
+      <Setter
+        Property="BorderBrush"
+        Value="{StaticResource LineBrush}" />
+      <Setter
+        Property="BorderThickness"
+        Value="1" />
+      <Setter
+        Property="VerticalContentAlignment"
+        Value="Center" />
+      <Setter
+        Property="Template">
+        <Setter.Value>
+          <ControlTemplate
+            TargetType="TextBox">
+            <Border
+              Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}"
+              BorderThickness="{TemplateBinding BorderThickness}"
+              CornerRadius="10">
+              <ScrollViewer
+                x:Name="PART_ContentHost" />
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style
+      TargetType="Button">
+      <Setter
+        Property="Height"
+        Value="36" />
+      <Setter
+        Property="Padding"
+        Value="16,0" />
+      <Setter
+        Property="Cursor"
+        Value="Hand" />
+      <Setter
+        Property="Foreground"
+        Value="{StaticResource InkBrush}" />
+      <Setter
+        Property="Background"
+        Value="{StaticResource NeutralButtonBrush}" />
+      <Setter
+        Property="BorderThickness"
+        Value="0" />
+      <Setter
+        Property="FontWeight"
+        Value="SemiBold" />
+      <Setter
+        Property="Template">
+        <Setter.Value>
+          <ControlTemplate
+            TargetType="Button">
+            <Border
+              Background="{TemplateBinding Background}"
+              CornerRadius="10">
+              <ContentPresenter
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger
+                Property="IsMouseOver"
+                Value="True">
+                <Setter
+                  Property="Background"
+                  Value="{StaticResource NeutralButtonHoverBrush}" />
+              </Trigger>
+              <Trigger
+                Property="IsEnabled"
+                Value="False">
+                <Setter
+                  Property="Opacity"
+                  Value="0.45" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style
+      x:Key="GreenButton"
+      TargetType="Button"
+      BasedOn="{StaticResource {x:Type Button}}">
+      <Setter
+        Property="Foreground"
+        Value="#FFFFFF" />
+      <Setter
+        Property="Background"
+        Value="{StaticResource AccentBrush}" />
+      <Style.Triggers>
+        <Trigger
+          Property="IsMouseOver"
+          Value="True">
+          <Setter
+            Property="Background"
+            Value="{StaticResource AccentDarkBrush}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style
+      TargetType="CheckBox">
+      <Setter
+        Property="Cursor"
+        Value="Hand" />
+      <Setter
+        Property="VerticalContentAlignment"
+        Value="Center" />
+      <Setter
+        Property="Template">
+        <Setter.Value>
+          <ControlTemplate
+            TargetType="CheckBox">
+            <StackPanel
+              Orientation="Horizontal"
+              VerticalAlignment="Center">
+              <Border
+                x:Name="Box"
+                Width="22"
+                Height="22"
+                CornerRadius="4"
+                BorderThickness="1.5"
+                BorderBrush="{StaticResource LineBrush}"
+                Background="#FFFFFF">
+                <Grid
+                  ClipToBounds="True">
+                  <Path
+                    x:Name="Tick"
+                    Data="M 4 11 L 9 16 L 18 6"
+                    Stroke="#FFFFFF"
+                    StrokeThickness="2.4"
+                    StrokeStartLineCap="Round"
+                    StrokeEndLineCap="Round"
+                    StrokeLineJoin="Round"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Width="16"
+                    Height="14"
+                    Stretch="Uniform"
+                    Visibility="Collapsed" />
+                </Grid>
+              </Border>
+              <ContentPresenter
+                Margin="8,0,0,0"
+                VerticalAlignment="Center" />
+            </StackPanel>
+            <ControlTemplate.Triggers>
+              <Trigger
+                Property="IsChecked"
+                Value="True">
+                <Setter
+                  TargetName="Box"
+                  Property="Background"
+                  Value="{StaticResource AccentBrush}" />
+                <Setter
+                  TargetName="Box"
+                  Property="BorderBrush"
+                  Value="{StaticResource AccentBrush}" />
+                <Setter
+                  TargetName="Tick"
+                  Property="Visibility"
+                  Value="Visible" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style
+      TargetType="DataGrid">
+      <Setter
+        Property="Background"
+        Value="#FFFFFF" />
+      <Setter
+        Property="BorderBrush"
+        Value="{StaticResource LineBrush}" />
+      <Setter
+        Property="BorderThickness"
+        Value="1" />
+      <Setter
+        Property="GridLinesVisibility"
+        Value="None" />
+      <Setter
+        Property="HeadersVisibility"
+        Value="Column" />
+      <Setter
+        Property="RowHeaderWidth"
+        Value="0" />
+      <Setter
+        Property="CanUserAddRows"
+        Value="False" />
+      <Setter
+        Property="CanUserDeleteRows"
+        Value="False" />
+      <Setter
+        Property="SelectionMode"
+        Value="Extended" />
+      <Setter
+        Property="SelectionUnit"
+        Value="FullRow" />
+    </Style>
+    <Style
+      TargetType="DataGridColumnHeader">
+      <Setter
+        Property="Height"
+        Value="40" />
+      <Setter
+        Property="Padding"
+        Value="0,0" />
+      <Setter
+        Property="Background"
+        Value="#F5F5F7" />
+      <Setter
+        Property="Foreground"
+        Value="{StaticResource MutedBrush}" />
+      <Setter
+        Property="BorderBrush"
+        Value="{StaticResource LineBrush}" />
+      <Setter
+        Property="BorderThickness"
+        Value="0,0,0,1" />
+      <Setter
+        Property="FontWeight"
+        Value="SemiBold" />
+      <Setter
+        Property="HorizontalContentAlignment"
+        Value="Left" />
+    </Style>
+    <Style
+      TargetType="DataGridRow">
+      <Setter
+        Property="Height"
+        Value="42" />
+      <Setter
+        Property="Background"
+        Value="#FFFFFF" />
+      <Style.Triggers>
+        <Trigger
+          Property="IsSelected"
+          Value="True">
+          <Setter
+            Property="Background"
+            Value="#DDF8E6" />
+          <Setter
+            Property="Foreground"
+            Value="{StaticResource InkBrush}" />
+        </Trigger>
+        <Trigger
+          Property="IsMouseOver"
+          Value="True">
+          <Setter
+            Property="Background"
+            Value="#ECFFF2" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style
+      TargetType="DataGridCell">
+      <Setter
+        Property="Padding"
+        Value="12,0" />
+      <Setter
+        Property="BorderThickness"
+        Value="0" />
+      <Setter
+        Property="VerticalContentAlignment"
+        Value="Center" />
+      <Setter
+        Property="HorizontalContentAlignment"
+        Value="Center" />
+      <Setter
+        Property="FocusVisualStyle"
+        Value="{x:Null}" />
+    </Style>
+  </Window.Resources>
+  <Grid
+    Margin="10">
+    <Grid.RowDefinitions>
+      <RowDefinition
+        Height="Auto" />
+      <RowDefinition
+        Height="Auto" />
+      <RowDefinition
+        Height="*" />
+      <RowDefinition
+        Height="Auto" />
+    </Grid.RowDefinitions>
+    <!--<TextBlock
+      Grid.Row="0"
+      Text="NMKMTO"
+      FontSize="28"
+      FontWeight="SemiBold"
+      Margin="0,0,0,16" />-->
+    <Border
+      Grid.Row="1"
+      Background="{StaticResource PanelBrush}"
+      BorderBrush="{StaticResource LineBrush}"
+      BorderThickness="1"
+      CornerRadius="10"
+      Padding="10"
+      Margin="0,0,0,10">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition
+            Width="Auto" />
+          <ColumnDefinition
+            Width="*" />
+          <ColumnDefinition
+            Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock
+          Text="Export folder"
+          Margin="0,0,10,0" />
+        <TextBox
+          Grid.Column="1"
+          Text="{Binding ExportFolder, UpdateSourceTrigger=PropertyChanged}" />
+        <Button
+          Width="36"
+          Grid.Column="2"
+          Command="{Binding BrowseExportFolderCommand}"
+          Content="..."
+          Margin="10,0,0,0" />
+      </Grid>
+    </Border>
+    <Grid
+      Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition
+          Width="300" />
+        <ColumnDefinition
+          Width="16" />
+        <ColumnDefinition
+          Width="*" />
+      </Grid.ColumnDefinitions>
+      <StackPanel
+        Grid.Column="0">
+        <Border
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          Padding="16"
+          Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock
+              Style="{StaticResource SectionTitle}"
+              Text="VIEW" />
+            <TextBlock
+              Text="FilledRegion view"
+              Foreground="{StaticResource MutedBrush}"
+              Margin="0,0,0,6" />
+            <TextBox
+              Text="{Binding FilledRegionViewName, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Border>
+        <Border
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          Padding="16"
+          Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock
+              Style="{StaticResource SectionTitle}"
+              Text="CONTROL" />
+            <Button
+              Command="{Binding AutoMarkCommand}"
+              Content="Auto Mark"
+              Margin="0,0,0,10" />
+            <Button
+              Command="{Binding ConsBarCommand}"
+              Content="Cons Bar"
+              Margin="0,0,0,10" />
+            <Button
+              Command="{Binding NumberShearCommand}"
+              Content="Number Shear"
+              Margin="0,0,0,10" />
+            <Button
+              Command="{Binding CreateDistributedMtoFillCommand}"
+              Content="Create MTO Fill"
+              Margin="0,0,0,10" />
+            <Button
+              Style="{StaticResource GreenButton}"
+              Command="{Binding ExportCommand}"
+              Content="Export" />
+          </StackPanel>
+        </Border>
+        <Border
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          Padding="16"
+          Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock
+              Style="{StaticResource SectionTitle}"
+              Text="EXPORT TYPES" />
+            <CheckBox
+              Content="REO"
+              IsChecked="{Binding ExportReo, Mode=TwoWay}"
+              Margin="0,0,0,10" />
+            <CheckBox
+              Content="DISTRIBUTED REO"
+              IsChecked="{Binding ExportDistributedReo, Mode=TwoWay}"
+              Margin="0,0,0,10" />
+            <CheckBox
+              Content="EARTHING REO"
+              IsChecked="{Binding ExportEarthingReo, Mode=TwoWay}"
+              Margin="0,0,0,10" />
+            <CheckBox
+              Content="MODEL"
+              IsChecked="{Binding ExportModel, Mode=TwoWay}"
+              Margin="0,0,0,10" />
+            <CheckBox
+              Content="3D"
+              IsChecked="{Binding Export3d, Mode=TwoWay}" />
+          </StackPanel>
+        </Border>
+        <Border
+          Background="{StaticResource PanelBrush}"
+          BorderBrush="{StaticResource LineBrush}"
+          BorderThickness="1"
+          CornerRadius="10"
+          Padding="16">
+          <StackPanel>
+            <TextBlock
+              Style="{StaticResource SectionTitle}"
+              Text="DEFAULT VALUES" />
+            <TextBlock
+              Text="MODEL top offset"
+              Foreground="{StaticResource MutedBrush}"
+              Margin="0,0,0,6" />
+            <TextBox
+              Text="{Binding DefaultModelTopOffset, UpdateSourceTrigger=PropertyChanged}"
+              Margin="0,0,0,12" />
+            <TextBlock
+              Text="MODEL bottom offset"
+              Foreground="{StaticResource MutedBrush}"
+              Margin="0,0,0,6" />
+            <TextBox
+              Text="{Binding DefaultModelBottomOffset, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+      <Border
+        Grid.Column="2"
+        Background="{StaticResource PanelBrush}"
+        BorderBrush="{StaticResource LineBrush}"
+        BorderThickness="1"
+        CornerRadius="10"
+        Padding="0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition
+              Height="54" />
+            <RowDefinition
+              Height="*" />
+          </Grid.RowDefinitions>
+          <DockPanel
+            Margin="16,0">
+            <TextBlock
+              Text="Sheets"
+              FontSize="16"
+              FontWeight="SemiBold"
+              DockPanel.Dock="Left" />
+            <TextBlock
+              Text="{Binding CheckedSheetCount, StringFormat=Checked: {0}}"
+              Foreground="{StaticResource MutedBrush}"
+              Margin="14,0,0,0"
+              DockPanel.Dock="Left" />
+            <StackPanel
+              HorizontalAlignment="Right"
+              DockPanel.Dock="Right"
+              Orientation="Horizontal"
+              VerticalAlignment="Center">
+              <TextBlock
+                Text="Sheet filter"
+                Margin="0,0,10,0" />
+              <TextBox
+                Width="260"
+                Margin="0,0,16,0"
+                Text="{Binding SheetFilterText, UpdateSourceTrigger=PropertyChanged}" />
+              <CheckBox
+                Content="Check all"
+                IsChecked="{Binding IsAllSheetsChecked, Mode=TwoWay}"
+                HorizontalAlignment="Right" />
+            </StackPanel>
+          </DockPanel>
+          <DataGrid
+            x:Name="SheetDataGrid"
+            Grid.Row="1"
+            ItemsSource="{Binding SheetsView}"
+            AutoGenerateColumns="False"
+            Margin="1,0,1,1">
+            <DataGrid.Columns>
+              <DataGridTemplateColumn
+                Width="58">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <CheckBox
+                      HorizontalAlignment="Center"
+                      IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Checked="SheetCheckBox_Changed"
+                      Unchecked="SheetCheckBox_Changed" />
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
+              <DataGridTextColumn
+                Binding="{Binding SheetNumber}"
+                Header="No."
+                Width="110">
+                <DataGridTextColumn.ElementStyle>
+                  <Style
+                    TargetType="TextBlock">
+                    <Setter
+                      Property="HorizontalAlignment"
+                      Value="Left" />
+                    <Setter
+                      Property="VerticalAlignment"
+                      Value="Center" />
+                    <Setter
+                      Property="TextAlignment"
+                      Value="Left" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn
+                Binding="{Binding SheetName}"
+                Header="Sheet Name"
+                Width="*">
+                <DataGridTextColumn.ElementStyle>
+                  <Style
+                    TargetType="TextBlock">
+                    <Setter
+                      Property="HorizontalAlignment"
+                      Value="Left" />
+                    <Setter
+                      Property="VerticalAlignment"
+                      Value="Center" />
+                    <Setter
+                      Property="TextAlignment"
+                      Value="Left" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn
+                Binding="{Binding LevelName}"
+                Header="Level"
+                Width="130">
+                <DataGridTextColumn.ElementStyle>
+                  <Style
+                    TargetType="TextBlock">
+                    <Setter
+                      Property="HorizontalAlignment"
+                      Value="Left" />
+                    <Setter
+                      Property="VerticalAlignment"
+                      Value="Center" />
+                    <Setter
+                      Property="TextAlignment"
+                      Value="Left" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn
+                Binding="{Binding ZoneName}"
+                Header="Zone"
+                Width="130">
+                <DataGridTextColumn.ElementStyle>
+                  <Style
+                    TargetType="TextBlock">
+                    <Setter
+                      Property="HorizontalAlignment"
+                      Value="Left" />
+                    <Setter
+                      Property="VerticalAlignment"
+                      Value="Center" />
+                    <Setter
+                      Property="TextAlignment"
+                      Value="Left" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+              <DataGridTextColumn
+                Binding="{Binding PourName}"
+                Header="Pour"
+                Width="200">
+                <DataGridTextColumn.ElementStyle>
+                  <Style
+                    TargetType="TextBlock">
+                    <Setter
+                      Property="HorizontalAlignment"
+                      Value="Left" />
+                    <Setter
+                      Property="VerticalAlignment"
+                      Value="Center" />
+                    <Setter
+                      Property="TextAlignment"
+                      Value="Left" />
+                  </Style>
+                </DataGridTextColumn.ElementStyle>
+              </DataGridTextColumn>
+            </DataGrid.Columns>
+          </DataGrid>
+        </Grid>
+      </Border>
+    </Grid>
+    <TextBlock
+      Grid.Row="3"
+      Text="{Binding StatusText}"
+      Foreground="{StaticResource MutedBrush}"
+      Margin="2,12,0,0" />
+  </Grid>
+</Window>

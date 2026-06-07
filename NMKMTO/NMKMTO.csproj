@@ -1,0 +1,128 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<!--<OutputType>Exe</OutputType>-->
+		<OutputType>Library</OutputType>
+		<XamlDebuggingInformation>True</XamlDebuggingInformation>
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>true</ImplicitUsings>
+		<EnableDynamicLoading>true</EnableDynamicLoading>
+		<Configurations>Debug;Release;D2025;D2024;R2025;R2024;D2022;D2023;D2026;D2021;D2020</Configurations>
+		<Platforms>AnyCPU</Platforms>
+	</PropertyGroup>
+	<Choose>
+		<When Condition="$(Configuration.Contains('22'))">
+			<PropertyGroup>
+				<DefineConstants>R22</DefineConstants>
+				<RevitVersion>2022</RevitVersion>
+				<TargetFramework>net48</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('23'))">
+			<PropertyGroup>
+				<DefineConstants>R23</DefineConstants>
+				<RevitVersion>2023</RevitVersion>
+				<TargetFramework>net48</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('24'))">
+			<PropertyGroup>
+				<DefineConstants>R24</DefineConstants>
+				<RevitVersion>2024</RevitVersion>
+				<TargetFramework>net48</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('25'))">
+			<PropertyGroup>
+				<DefineConstants>R25</DefineConstants>
+				<RevitVersion>2025</RevitVersion>
+				<TargetFramework>net80-windows</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('26'))">
+			<PropertyGroup>
+				<DefineConstants>R26</DefineConstants>
+				<RevitVersion>2026</RevitVersion>
+				<TargetFramework>net80-windows</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('21'))">
+			<PropertyGroup>
+				<DefineConstants>R21</DefineConstants>
+				<RevitVersion>2021</RevitVersion>
+				<TargetFramework>net48</TargetFramework>
+			</PropertyGroup>
+		</When>
+		<When Condition="$(Configuration.Contains('20'))">
+			<PropertyGroup>
+				<DefineConstants>R20</DefineConstants>
+				<RevitVersion>2020</RevitVersion>
+				<TargetFramework>net47</TargetFramework>
+			</PropertyGroup>
+		</When>
+	</Choose>
+	<PropertyGroup Condition="$(Configuration.Contains('D'))">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>full</DebugType>
+		<Optimize>false</Optimize>
+		<OutputPath>bin\Debug\$(RevitVersion)</OutputPath>
+		<DefineConstants>DEBUG;TRACE;D$(RevitVersion)</DefineConstants>
+		<ErrorReport>prompt</ErrorReport>
+		<WarningLevel>4</WarningLevel>
+	</PropertyGroup>
+	<PropertyGroup Condition="$(Configuration.Contains('R'))">
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<OutputPath>bin\Release\$(RevitVersion)</OutputPath>
+		<DefineConstants>TRACE;R$(RevitVersion)</DefineConstants>
+		<ErrorReport>prompt</ErrorReport>
+		<WarningLevel>4</WarningLevel>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
+		<PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+		<PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitVersion).*" />
+		<PackageReference Include="Revit.Async" Version="2.1.1" />
+		<PackageReference Include="System.Management" Version="10.0.1" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Update="NMKMTO_Window.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
+	</ItemGroup>
+	<PropertyGroup>
+		<StartAction>Program</StartAction>
+		<StartProgram>C:\Program Files\Autodesk\Revit $(RevitVersion)\Revit.exe</StartProgram>
+		<PlatformTarget>x64</PlatformTarget>
+	</PropertyGroup>
+	<Target Name="CopyBuildOutput" AfterTargets="Build">
+		<!-- Xóa s?ch output cu -->
+		<RemoveDir Directories="$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..'))\NMKMTOInstaller\NMKMTO.bundle\Contents\$(RevitVersion)" />
+
+		<ItemGroup>
+			<!-- L?y toàn b? output -->
+			<AllOutputFiles Include="$(TargetDir)**\*.*" />
+
+			<!-- Lo?i b? win-x86 -->
+			<AllOutputFiles Remove="$(TargetDir)runtimes\win-x86\**\*.*" />
+		</ItemGroup>
+		<!--<Copy SourceFiles="@(AllOutputFiles)" DestinationFolder="C:\ProgramData\Autodesk\ApplicationPlugins\NMKMTO.bundle\Contents\$(RevitVersion)\" SkipUnchangedFiles="false" />-->
+	</Target>
+	<Target Name="CopyRebuildOutput" AfterTargets="Rebuild">
+		<!-- Xóa s?ch output cu -->
+		<RemoveDir Directories="$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..'))\NMKMTOInstaller\NMKMTO.bundle\Contents\$(RevitVersion)" />
+
+		<ItemGroup>
+			<!-- L?y toàn b? output -->
+			<AllOutputFiles Include="$(TargetDir)**\*.*" />
+
+			<!-- Lo?i b? win-x86 -->
+			<AllOutputFiles Remove="$(TargetDir)runtimes\win-x86\**\*.*" />
+		</ItemGroup>
+		<!--<Copy SourceFiles="@(AllOutputFiles)" DestinationFolder="C:\ProgramData\Autodesk\ApplicationPlugins\NMKMTO.bundle\Contents\$(RevitVersion)\" SkipUnchangedFiles="false" />-->
+	</Target>
+</Project>

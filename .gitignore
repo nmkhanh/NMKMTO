@@ -1,0 +1,17 @@
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+
+# Revit/local build artifacts
+*.addin.user
+
+# Export/output files
+*.csv
+*_WARNING*.csv
+*.xlsx
+*.xlsm
+
