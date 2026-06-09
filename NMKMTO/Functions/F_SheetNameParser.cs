@@ -18,7 +18,7 @@ namespace NMKMTO.Functions
       if (parts.Length > 1 && parts[1].StartsWith("ZONE", StringComparison.OrdinalIgnoreCase))
         info.ZoneName = parts[1];
 
-      var locationPart = parts.Length > 0 ? parts[^1] : string.Empty;
+      var locationPart = parts.Length > 0 ? parts[parts.Length - 1] : string.Empty;
       info.Location = ParseLocation(locationPart);
 
       return info;

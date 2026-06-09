@@ -92,7 +92,9 @@ namespace NMKMTO
       using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
       {
         dialog.Description = "Select export folder";
+#if NET5_0_OR_GREATER
         dialog.UseDescriptionForTitle = true;
+#endif
 
         if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
           ExportFolder = dialog.SelectedPath;
