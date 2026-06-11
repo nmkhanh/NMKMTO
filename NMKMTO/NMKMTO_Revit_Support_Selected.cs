@@ -18,7 +18,7 @@ namespace NMKMTO
         if (uidoc == null)
           throw new InvalidOperationException("No active Revit document.");
 
-        var result = SUPPORT.ExecuteSelectedWithDirectionArrows(uidoc);
+        var result = SUPPORT.Execute(uidoc, true);
         System.Windows.MessageBox.Show(
           result.Message,
           "NMKMTO SUPPORT SELECTED",
