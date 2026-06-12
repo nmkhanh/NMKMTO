@@ -6,7 +6,13 @@ namespace NMKMTO.Functions
 {
   public static class SUPPORT
   {
-    public static NMKMTO_ModelActionResult Execute(UIDocument uidoc, bool selectedOnly, int directionMode = 0)
+    public static NMKMTO_ModelActionResult Execute(
+      UIDocument uidoc,
+      bool selectedOnly,
+      int directionMode = 0,
+      bool groupResults = true,
+      bool createFilledRegions = true,
+      List<List<CurveLoop>> calculatedBoundaries = null)
     {
       #region 01 - Active document, view, and selected elements
 
@@ -15,7 +21,13 @@ namespace NMKMTO.Functions
 
       Document doc = uidoc.Document;
       Autodesk.Revit.DB.View view = doc.ActiveView;
-      string directionLabel = directionMode == 2 ? "VERTICAL" : "HORIZONTAL";
+      string directionLabel = directionMode == 4
+        ? "NONE"
+        : directionMode == 3
+          ? "ALL"
+          : directionMode == 2
+            ? "VERTICAL"
+            : "HORIZONTAL";
       List<ElementId> sourceIds = selectedOnly
         ? uidoc.Selection.GetElementIds().ToList()
         : new FilteredElementCollector(doc, view.Id)
@@ -37,14 +49,19 @@ namespace NMKMTO.Functions
       const string distributionFamilyName = "Reo__Reinforcement_DistributionAdjustable[Rinco] 1";
       const string reoGraphicStyleName = "Reo";
 
-      FilledRegionType baseRegionType = new FilteredElementCollector(doc)
-        .OfClass(typeof(FilledRegionType))
-        .Cast<FilledRegionType>()
-        .FirstOrDefault();
-      if (baseRegionType == null)
-        throw new InvalidOperationException("No FilledRegionType found in the document.");
+      FilledRegionType baseRegionType = null;
+      if (createFilledRegions)
+      {
+        baseRegionType = new FilteredElementCollector(doc)
+          .OfClass(typeof(FilledRegionType))
+          .Cast<FilledRegionType>()
+          .FirstOrDefault();
+        if (baseRegionType == null)
+          throw new InvalidOperationException("No FilledRegionType found in the document.");
+      }
 
       FilledRegionType regionType = null;
+      var allDirectionRegionTypes = new Dictionary<string, FilledRegionType>(StringComparer.OrdinalIgnoreCase);
       int created = 0;
       var warnings = new List<string>();
       var arrowOnGroupMemberIds = new List<ElementId>();
@@ -54,37 +71,68 @@ namespace NMKMTO.Functions
 
       using (var transaction = new Transaction(doc, "SUPPORT selected reo fill"))
       {
-        transaction.Start();
+        if (createFilledRegions)
+          transaction.Start();
 
-        #region 01A - Get or create grey FilledRegion type
+        #region 01A - Get or create FilledRegion type and apply group color
 
-        const string greyRegionTypeName = "SUPPORT GREY";
-        regionType = new FilteredElementCollector(doc)
-          .OfClass(typeof(FilledRegionType))
-          .Cast<FilledRegionType>()
-          .FirstOrDefault(type => string.Equals(type.Name, greyRegionTypeName, StringComparison.OrdinalIgnoreCase));
+        if (createFilledRegions)
+        {
+          FillPatternElement solidPattern = new FilteredElementCollector(doc)
+            .OfClass(typeof(FillPatternElement))
+            .Cast<FillPatternElement>()
+            .FirstOrDefault(pattern => pattern.GetFillPattern().IsSolidFill);
 
-        if (regionType == null)
-          regionType = baseRegionType.Duplicate(greyRegionTypeName) as FilledRegionType;
+          var typeDefinitions = directionMode == 3 && !selectedOnly
+            ? new[]
+            {
+              new { Label = "HORIZONTAL", Name = "SUPPORT HORIZONTAL", Color = new Autodesk.Revit.DB.Color(0, 180, 0) },
+              new { Label = "VERTICAL", Name = "SUPPORT VERTICAL", Color = new Autodesk.Revit.DB.Color(255, 140, 0) },
+              new { Label = "NONE", Name = "SUPPORT NONE", Color = new Autodesk.Revit.DB.Color(0, 200, 200) }
+            }
+            : new[]
+            {
+              new
+              {
+                Label = directionLabel,
+                Name = selectedOnly ? "SUPPORT GREY" : $"SUPPORT {directionLabel}",
+                Color = selectedOnly
+                  ? new Autodesk.Revit.DB.Color(160, 160, 160)
+                  : directionMode == 1
+                    ? new Autodesk.Revit.DB.Color(0, 180, 0)
+                    : directionMode == 2
+                      ? new Autodesk.Revit.DB.Color(255, 140, 0)
+                      : new Autodesk.Revit.DB.Color(0, 200, 200)
+              }
+            };
 
-        if (regionType == null)
-          throw new InvalidOperationException($"Could not create FilledRegionType '{greyRegionTypeName}'.");
+          foreach (var definition in typeDefinitions)
+          {
+            FilledRegionType currentType = new FilteredElementCollector(doc)
+              .OfClass(typeof(FilledRegionType))
+              .Cast<FilledRegionType>()
+              .FirstOrDefault(type => string.Equals(type.Name, definition.Name, StringComparison.OrdinalIgnoreCase));
 
-        FillPatternElement solidPattern = new FilteredElementCollector(doc)
-          .OfClass(typeof(FillPatternElement))
-          .Cast<FillPatternElement>()
-          .FirstOrDefault(pattern => pattern.GetFillPattern().IsSolidFill);
+            if (currentType == null)
+              currentType = baseRegionType.Duplicate(definition.Name) as FilledRegionType;
+            if (currentType == null)
+              throw new InvalidOperationException($"Could not create FilledRegionType '{definition.Name}'.");
 
-        if (solidPattern != null)
-          regionType.ForegroundPatternId = solidPattern.Id;
+            if (solidPattern != null)
+              currentType.ForegroundPatternId = solidPattern.Id;
+            currentType.ForegroundPatternColor = definition.Color;
+            currentType.IsMasking = false;
+            allDirectionRegionTypes[definition.Label] = currentType;
+          }
 
-        regionType.ForegroundPatternColor = new Autodesk.Revit.DB.Color(160, 160, 160);
-        regionType.IsMasking = false;
+          regionType = allDirectionRegionTypes[typeDefinitions[0].Label];
+        }
 
         #endregion
 
         foreach (ElementId selectedId in sourceIds)
         {
+          string elementDirectionLabel = directionLabel;
           Element element = doc.GetElement(selectedId);
           if (element is not FamilyInstance familyInstance)
           {
@@ -307,9 +355,19 @@ namespace NMKMTO.Functions
             double horizontalAlignment = Math.Abs(reoDirection.DotProduct(horizontalViewDirection));
             double verticalAlignment = Math.Abs(reoDirection.DotProduct(verticalViewDirection));
             double directionTolerance = Math.Cos(Math.PI / 12.0);
-            bool matchesDirection = directionMode == 2
-              ? verticalAlignment >= directionTolerance
-              : horizontalAlignment >= directionTolerance;
+            bool isHorizontal = horizontalAlignment >= directionTolerance;
+            bool isVertical = verticalAlignment >= directionTolerance;
+            elementDirectionLabel = isHorizontal
+              ? "HORIZONTAL"
+              : isVertical
+                ? "VERTICAL"
+                : "NONE";
+            bool matchesDirection = directionMode == 3
+              || (directionMode == 4
+                ? !isHorizontal && !isVertical
+                : directionMode == 2
+                  ? isVertical
+                  : isHorizontal);
             if (!matchesDirection)
               continue;
           }
@@ -393,7 +451,7 @@ namespace NMKMTO.Functions
 
           #region 06C - Draw Reo direction and move direction arrows
 
-          if (selectedOnly)
+          if (selectedOnly && createFilledRegions)
           {
             double debugArrowLength = UnitUtils.ConvertToInternalUnits(800, UnitTypeId.Millimeters);
             double debugHeadLength = UnitUtils.ConvertToInternalUnits(120, UnitTypeId.Millimeters);
@@ -469,9 +527,23 @@ namespace NMKMTO.Functions
           boundary.Append(Line.CreateBound(secondEnd, firstEnd));
           boundary.Append(Line.CreateBound(firstEnd, firstStart));
 
+          calculatedBoundaries?.Add(
+            new List<CurveLoop>
+            {
+              CurveLoop.CreateViaTransform(boundary, Transform.Identity)
+            });
+
+          if (!createFilledRegions)
+          {
+            created++;
+            continue;
+          }
+
           FilledRegion filledRegion = FilledRegion.Create(
             doc,
-            regionType.Id,
+            (directionMode == 3 && !selectedOnly
+              ? allDirectionRegionTypes[elementDirectionLabel]
+              : regionType).Id,
             view.Id,
             new List<CurveLoop> { boundary });
 
@@ -479,7 +551,7 @@ namespace NMKMTO.Functions
           if (comments != null && !comments.IsReadOnly)
           {
             comments.Set(
-              $"SUPPORT {(selectedOnly ? "SELECTED" : directionLabel)} | Family: {familyName} | Source ElementId: {selectedId}");
+              $"SUPPORT {(selectedOnly ? "SELECTED" : elementDirectionLabel)} | Family: {familyName} | Source ElementId: {selectedId}");
           }
 
           if (!selectedOnly)
@@ -495,19 +567,20 @@ namespace NMKMTO.Functions
           #endregion
         }
 
-        if (!selectedOnly && arrowOnGroupMemberIds.Count > 1)
+        if (createFilledRegions && !selectedOnly && groupResults && arrowOnGroupMemberIds.Count > 1)
         {
           Group arrowOnGroup = doc.Create.NewGroup(arrowOnGroupMemberIds.Distinct().ToList());
           arrowOnGroup.GroupType.Name = $"SUPPORT {directionLabel} ARROW ON - {view.Name} - {DateTime.Now:HHmmss}";
         }
 
-        if (!selectedOnly && arrowOffGroupMemberIds.Count > 1)
+        if (createFilledRegions && !selectedOnly && groupResults && arrowOffGroupMemberIds.Count > 1)
         {
           Group arrowOffGroup = doc.Create.NewGroup(arrowOffGroupMemberIds.Distinct().ToList());
           arrowOffGroup.GroupType.Name = $"SUPPORT {directionLabel} ARROW OFF - {view.Name} - {DateTime.Now:HHmmss}";
         }
 
-        transaction.Commit();
+        if (createFilledRegions)
+          transaction.Commit();
       }
 
       #region 09 - Return result
@@ -515,7 +588,9 @@ namespace NMKMTO.Functions
       var result = new NMKMTO_ModelActionResult
       {
         TotalCount = created,
-        Message = selectedOnly
+        Message = !createFilledRegions
+          ? $"SUPPORT boundaries calculated\nRegions: {created}"
+          : selectedOnly
           ? $"SUPPORT selected completed\nSelected: {sourceIds.Count}\nFilledRegion created: {created}"
           : $"SUPPORT active view completed\nView: {view.Name}\nDirection: {directionLabel}\nFilledRegion created: {created}\nArrow ON pairs: {arrowOnGroupMemberIds.Count / 2}\nArrow OFF pairs: {arrowOffGroupMemberIds.Count / 2}"
       };
