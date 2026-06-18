@@ -242,6 +242,12 @@ namespace NMKMTO
       }
 
       bool ranExporter = false;
+      if (ExportReo)
+      {
+        await GetReoData();
+        ranExporter = true;
+      }
+
       if (ExportModel)
       {
         await GetModelData();
@@ -262,6 +268,36 @@ namespace NMKMTO
 
       if (!ranExporter)
         StatusText = "Export is ready for implementation";
+    }
+
+    private async Task GetReoData()
+    {
+      var selectedSheets = Sheets.Where(x => x.IsSelected).ToList();
+      if (selectedSheets.Count == 0)
+      {
+        System.Windows.MessageBox.Show("Please select at least one sheet.", "NMKMTO", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        return;
+      }
+
+      try
+      {
+        StatusText = "Getting REO data...";
+        var result = new NMKMTO_ModelActionResult();
+        var options = CreateExportOptions();
+
+        await RevitTask.RunAsync(uiapp =>
+        {
+          result = F_ReoExtractor.Execute(uiapp.ActiveUIDocument.Document, selectedSheets, options);
+        });
+
+        StatusText = $"REO exported: {result.TotalCount} rows";
+        System.Windows.MessageBox.Show(result.Message, "NMKMTO REO", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+      }
+      catch (Exception ex)
+      {
+        StatusText = "REO failed";
+        System.Windows.MessageBox.Show(ex.Message, "NMKMTO REO", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+      }
     }
 
     [RelayCommand]
