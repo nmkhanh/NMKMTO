@@ -21,7 +21,8 @@ namespace NMKMTO.Functions
     public static NMKMTO_ModelDistributedReoResult Extract(
       Document doc,
       IEnumerable<NMKMTO_ModelSheetRow> selectedSheets,
-      NMKMTO_ModelModelDataOptions options)
+      NMKMTO_ModelModelDataOptions options,
+      bool writeDataCsv = true)
     {
       if (doc == null)
         throw new ArgumentNullException(nameof(doc));
@@ -287,7 +288,8 @@ namespace NMKMTO.Functions
         ? Path.Combine(options.ExportFolder, $"{baseFileName}_WARNING.csv")
         : string.Empty;
 
-      ExportCsv(exportPath, rows);
+      if (writeDataCsv)
+        ExportCsv(exportPath, rows);
       if (warnings.Count > 0)
         ExportWarnings(warningPath, warnings);
 
@@ -299,12 +301,24 @@ namespace NMKMTO.Functions
         SheetCount = sheets.Count,
         DistributedTopAreaM2 = totalTopAreaM2,
         DistributedBottomAreaM2 = totalBottomAreaM2,
-        ExportPath = exportPath,
+        ExportPath = writeDataCsv ? exportPath : string.Empty,
         WarningPath = warningPath,
         Message = warnings.Count > 0
           ? $"DISTRIBUTED REO exported: {exportPath}\nRows: {rows.Count}\nCurveLoops: {sourceCurveLoopCount}\nWarning file: {warningPath}"
           : $"DISTRIBUTED REO exported: {exportPath}\nRows: {rows.Count}\nCurveLoops: {sourceCurveLoopCount}"
       };
+      foreach (DistributedRow row in rows)
+      {
+        result.Rows.Add(new NMKMTO_ModelModelDataRow
+        {
+          No = row.No,
+          Pour = row.Pour,
+          Zone = row.Zone,
+          Level = row.Level,
+          DistributedTopAreaM2 = row.DistributedTopAreaM2,
+          DistributedBottomAreaM2 = row.DistributedBottomAreaM2
+        });
+      }
       foreach (string warning in warnings)
         result.Warnings.Add(warning);
 

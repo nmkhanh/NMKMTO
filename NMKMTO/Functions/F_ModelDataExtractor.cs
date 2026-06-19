@@ -21,7 +21,8 @@ namespace NMKMTO.Functions
     public static NMKMTO_ModelModelDataResult Extract(
       Document doc,
       IEnumerable<NMKMTO_ModelSheetRow> selectedSheets,
-      NMKMTO_ModelModelDataOptions options)
+      NMKMTO_ModelModelDataOptions options,
+      bool writeDataCsv = true)
     {
       if (string.IsNullOrWhiteSpace(options.ExportFolder))
         throw new InvalidOperationException("Export folder is empty.");
@@ -153,7 +154,8 @@ namespace NMKMTO.Functions
       string baseFileName = BuildBaseExportFileName(doc, sheets, options);
       string exportPath = Path.Combine(options.ExportFolder, $"{baseFileName}.csv");
       string warningPath = warnings.Count > 0 ? Path.Combine(options.ExportFolder, $"{baseFileName}_WARNING.csv") : string.Empty;
-      ExportCsv(exportPath, rows);
+      if (writeDataCsv)
+        ExportCsv(exportPath, rows);
       if (warnings.Count > 0)
         ExportWarnings(warningPath, warnings);
 
@@ -163,7 +165,7 @@ namespace NMKMTO.Functions
         OverViewCount = overViews.Count,
         FloorSurfaceArea = rows.Sum(x => x.FloorAreaM2),
         FloorVolume = rows.Sum(x => x.FloorVolumeM3),
-        ExportPath = exportPath,
+        ExportPath = writeDataCsv ? exportPath : string.Empty,
         WarningPath = warningPath,
         Message = warnings.Count > 0
           ? $"MODEL exported: {exportPath}\nWarning file: {warningPath}"

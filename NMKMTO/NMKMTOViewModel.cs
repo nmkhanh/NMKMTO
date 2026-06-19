@@ -241,33 +241,39 @@ namespace NMKMTO
         return;
       }
 
-      bool ranExporter = false;
-      if (ExportReo)
+      var selectedSheets = Sheets.Where(x => x.IsSelected).ToList();
+      if (selectedSheets.Count == 0)
       {
-        await GetReoData();
-        ranExporter = true;
+        System.Windows.MessageBox.Show("Please select at least one sheet.", "NMKMTO", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        return;
       }
 
-      if (ExportModel)
+      try
       {
-        await GetModelData();
-        ranExporter = true;
-      }
+        StatusText = "Exporting combined MTO data...";
+        var result = new NMKMTO_ModelActionResult();
+        var options = CreateExportOptions();
 
-      if (ExportEarthingReo)
+        await RevitTask.RunAsync(uiapp =>
+        {
+          result = F_CombinedMtoExporter.Execute(
+            uiapp.ActiveUIDocument.Document,
+            selectedSheets,
+            options,
+            ExportReo,
+            ExportDistributedReo,
+            ExportEarthingReo,
+            ExportModel);
+        });
+
+        StatusText = $"Combined MTO exported: {result.ExportPath}";
+        System.Windows.MessageBox.Show(result.Message, "NMKMTO Export", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+      }
+      catch (Exception ex)
       {
-        await GetEarthingReoData();
-        ranExporter = true;
+        StatusText = "Combined MTO export failed";
+        System.Windows.MessageBox.Show(ex.Message, "NMKMTO Export", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
       }
-
-      if (ExportDistributedReo)
-      {
-        await GetDistributedReoData();
-        ranExporter = true;
-      }
-
-      if (!ranExporter)
-        StatusText = "Export is ready for implementation";
     }
 
     private async Task GetReoData()

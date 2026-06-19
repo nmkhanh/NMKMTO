@@ -20,7 +20,8 @@ namespace NMKMTO.Functions
     public static NMKMTO_ModelEarthingReoResult Extract(
       Document doc,
       IEnumerable<NMKMTO_ModelSheetRow> selectedSheets,
-      NMKMTO_ModelModelDataOptions options)
+      NMKMTO_ModelModelDataOptions options,
+      bool writeDataCsv = true)
     {
       if (string.IsNullOrWhiteSpace(options.ExportFolder))
         throw new InvalidOperationException("Export folder is empty.");
@@ -123,7 +124,8 @@ namespace NMKMTO.Functions
       string exportPath = Path.Combine(options.ExportFolder, $"{baseFileName}.csv");
       string warningPath = warnings.Count > 0 ? Path.Combine(options.ExportFolder, $"{baseFileName}_WARNING.csv") : string.Empty;
       string earthingHeader = BuildEarthingHeader(earthingTypeNames);
-      ExportCsv(exportPath, rows, earthingHeader);
+      if (writeDataCsv)
+        ExportCsv(exportPath, rows, earthingHeader);
       if (warnings.Count > 0)
         ExportWarnings(warningPath, warnings);
 
@@ -131,12 +133,14 @@ namespace NMKMTO.Functions
       {
         SheetCount = sheets.Count,
         EarthingAreaM2 = rows.Sum(x => x.N16_1000AreaM2),
-        ExportPath = exportPath,
+        ExportPath = writeDataCsv ? exportPath : string.Empty,
         WarningPath = warningPath,
         Message = warnings.Count > 0
           ? $"EARTHING REO exported: {exportPath}\nWarning file: {warningPath}"
           : $"EARTHING REO exported: {exportPath}"
       };
+      foreach (var row in rows)
+        result.Rows.Add(row);
       foreach (var warning in warnings)
         result.Warnings.Add(warning);
 

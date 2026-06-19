@@ -42,7 +42,8 @@ namespace NMKMTO.Functions
     public static NMKMTO_ModelActionResult Execute(
       Document doc,
       IEnumerable<NMKMTO_ModelSheetRow> selectedSheets,
-      NMKMTO_ModelModelDataOptions options)
+      NMKMTO_ModelModelDataOptions options,
+      bool writeDataCsv = true)
     {
       #region 01 - Validate input and define the REO export contract
 
@@ -698,7 +699,9 @@ namespace NMKMTO.Functions
             : value;
         })));
       }
-      File.WriteAllText(exportPath, csv.ToString(), Encoding.UTF8);
+      string dataCsvContent = csv.ToString();
+      if (writeDataCsv)
+        File.WriteAllText(exportPath, dataCsvContent, Encoding.UTF8);
 
       string warningPath = string.Empty;
       if (warnings.Count > 0)
@@ -722,6 +725,8 @@ namespace NMKMTO.Functions
       var result = new NMKMTO_ModelActionResult
       {
         TotalCount = rows.Count,
+        ExportPath = writeDataCsv ? exportPath : string.Empty,
+        DataCsvContent = dataCsvContent,
         WarningPath = warningPath,
         Message = warnings.Count > 0
           ? $"REO exported: {exportPath}\nRows: {rows.Count}\nWarning file: {warningPath}"
