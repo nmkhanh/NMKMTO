@@ -9,10 +9,6 @@ namespace NMKMTO.Functions
 {
   public static class F_DistributedReoExtractor
   {
-    private const string DirectShapeApplicationId = "NMKMTO_DISTRIBUTED_REO_MTO";
-    private const string ZBarFamilyName = "Reo__ZBar[Rinco]";
-    private const string DistributionFamilyName = "Reo__Reinforcement_DistributionAdjustable[Rinco] 1";
-    private const string ReoGraphicStyleName = "Reo";
     private const double Ft2ToM2 = 0.09290304;
 
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
@@ -89,12 +85,12 @@ namespace NMKMTO.Functions
         List<Autodesk.Revit.DB.View> topViews = GetOverViews(
           doc,
           scopeSheets.Where(sheet =>
-            sheet.SheetName.IndexOf("TOP", StringComparison.OrdinalIgnoreCase) >= 0),
+            sheet.SheetName.IndexOf(F_MtoNames.Keywords.Top, StringComparison.OrdinalIgnoreCase) >= 0),
           warnings);
         List<Autodesk.Revit.DB.View> bottomViews = GetOverViews(
           doc,
           scopeSheets.Where(sheet =>
-            sheet.SheetName.IndexOf("BOTTOM", StringComparison.OrdinalIgnoreCase) >= 0),
+            sheet.SheetName.IndexOf(F_MtoNames.Keywords.Bottom, StringComparison.OrdinalIgnoreCase) >= 0),
           warnings);
 
         if (topViews.Count == 0)
@@ -187,9 +183,7 @@ namespace NMKMTO.Functions
           var row = new DistributedRow
           {
             No = rowNo++,
-            Pour = mtoRegion.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase)
-              ? mtoRegion.Comments
-              : string.Empty,
+            Pour = mtoRegion.Comments,
             Zone = string.IsNullOrWhiteSpace(mtoRegion.RincoZone)
               ? mtoRegion.Comments
               : mtoRegion.RincoZone,
@@ -242,7 +236,7 @@ namespace NMKMTO.Functions
           List<ElementId> oldShapeIds = new FilteredElementCollector(doc)
             .OfClass(typeof(DirectShape))
             .Cast<DirectShape>()
-            .Where(shape => shape.ApplicationId == DirectShapeApplicationId)
+            .Where(shape => shape.ApplicationId == F_MtoNames.DirectShapeApplications.DistributedReo)
             .Select(shape => shape.Id)
             .ToList();
           if (oldShapeIds.Count > 0)
@@ -254,13 +248,13 @@ namespace NMKMTO.Functions
             DirectShape directShape = DirectShape.CreateElement(
               doc,
               new ElementId(BuiltInCategory.OST_GenericModel));
-            directShape.ApplicationId = DirectShapeApplicationId;
+            directShape.ApplicationId = F_MtoNames.DirectShapeApplications.DistributedReo;
             directShape.ApplicationDataId = directShapeIndex.ToString(CultureInfo.InvariantCulture);
             directShape.Name = item.Name;
             directShape.SetShape(item.Solids.Cast<GeometryObject>().ToList());
 
             Parameter comments = directShape.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-              ?? directShape.LookupParameter("Comments");
+              ?? directShape.LookupParameter(F_MtoNames.Parameters.Comments);
             if (comments != null && !comments.IsReadOnly)
               comments.Set(item.Comments);
 
@@ -386,8 +380,8 @@ namespace NMKMTO.Functions
           Comments = GetStringParameter(
             region,
             BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS,
-            "Comments"),
-          RincoZone = GetStringParameter(region, "RINCO_ZONE")
+            F_MtoNames.Parameters.Comments),
+          RincoZone = GetStringParameter(region, F_MtoNames.Parameters.RincoZone)
         })
         .Where(region => !string.IsNullOrWhiteSpace(region.Comments))
         .ToList();
@@ -452,8 +446,7 @@ namespace NMKMTO.Functions
           .Where(instance =>
           {
             string name = instance.Symbol?.Family?.Name ?? string.Empty;
-            return string.Equals(name, ZBarFamilyName, StringComparison.OrdinalIgnoreCase)
-              || string.Equals(name, DistributionFamilyName, StringComparison.OrdinalIgnoreCase);
+            return F_MtoNames.IsZBarFamily(name) || F_MtoNames.IsDistributionFamily(name);
           })
           .ToList();
 
@@ -463,11 +456,8 @@ namespace NMKMTO.Functions
             continue;
 
           string familyName = element.Symbol?.Family?.Name ?? string.Empty;
-          bool isZBar = string.Equals(familyName, ZBarFamilyName, StringComparison.OrdinalIgnoreCase);
-          bool isDistribution = string.Equals(
-            familyName,
-            DistributionFamilyName,
-            StringComparison.OrdinalIgnoreCase);
+          bool isZBar = F_MtoNames.IsZBarFamily(familyName);
+          bool isDistribution = F_MtoNames.IsDistributionFamily(familyName);
 
           double moveDistance;
           double stretchDistance;
@@ -475,16 +465,16 @@ namespace NMKMTO.Functions
 
           if (isDistribution)
           {
-            Parameter moveParameter = element.LookupParameter("Bar From Arrow 1");
-            Parameter stretchParameter = element.LookupParameter("Arrow 1 Length");
+            Parameter moveParameter = element.LookupParameter(F_MtoNames.Parameters.BarFromArrow1);
+            Parameter stretchParameter = element.LookupParameter(F_MtoNames.Parameters.Arrow1Length);
             if (moveParameter == null || moveParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Bar From Arrow 1'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.BarFromArrow1}'.");
               continue;
             }
             if (stretchParameter == null || stretchParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Arrow 1 Length'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.Arrow1Length}'.");
               continue;
             }
 
@@ -493,22 +483,22 @@ namespace NMKMTO.Functions
           }
           else
           {
-            Parameter moveParameter = element.LookupParameter("Arrow Top");
-            Parameter stretchParameter = element.LookupParameter("Arrow Bot");
-            Parameter topBarLocationParameter = element.LookupParameter("Top Bar Location");
+            Parameter moveParameter = element.LookupParameter(F_MtoNames.Parameters.ArrowTop);
+            Parameter stretchParameter = element.LookupParameter(F_MtoNames.Parameters.ArrowBot);
+            Parameter topBarLocationParameter = element.LookupParameter(F_MtoNames.Parameters.TopBarLocation);
             if (moveParameter == null || moveParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Arrow Top'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.ArrowTop}'.");
               continue;
             }
             if (stretchParameter == null || stretchParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Arrow Bot'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.ArrowBot}'.");
               continue;
             }
             if (topBarLocationParameter == null || topBarLocationParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Top Bar Location'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.TopBarLocation}'.");
               continue;
             }
 
@@ -592,10 +582,10 @@ namespace NMKMTO.Functions
 
           if (isDistribution)
           {
-            Parameter spliceParameter = element.LookupParameter("Splice");
+            Parameter spliceParameter = element.LookupParameter(F_MtoNames.Parameters.Splice);
             if (spliceParameter == null || spliceParameter.StorageType != StorageType.Integer)
             {
-              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing 'Splice'.");
+              warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: missing '{F_MtoNames.Parameters.Splice}'.");
               continue;
             }
             if (spliceParameter.AsInteger() == 0)
@@ -716,6 +706,7 @@ namespace NMKMTO.Functions
             warnings.Add($"{layerName} | View '{view.Name}', ElementId {element.Id}: {ex.Message}");
           }
         }
+
       }
 
       return result;
@@ -728,10 +719,10 @@ namespace NMKMTO.Functions
 
       GraphicsStyle style = doc.GetElement(curve.GraphicsStyleId) as GraphicsStyle;
       if (style != null
-        && (string.Equals(style.Name, ReoGraphicStyleName, StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(style.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)
           || string.Equals(
             style.GraphicsStyleCategory?.Name,
-            ReoGraphicStyleName,
+            F_MtoNames.GraphicStyles.Reo,
             StringComparison.OrdinalIgnoreCase)))
       {
         result.Add(curve);
@@ -966,12 +957,9 @@ namespace NMKMTO.Functions
     private static bool IsRegionForSheet(MtoRegionData region, NMKMTO_ModelSheetRow sheet)
     {
       if (string.IsNullOrWhiteSpace(sheet.ZoneName))
-        return true;
+        return false;
 
-      if (region.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase))
-        return EqualsName(region.RincoZone, sheet.ZoneName);
-
-      return EqualsName(region.Comments, sheet.ZoneName);
+      return EqualsZoneName(region.RincoZone, sheet.ZoneName);
     }
 
     private static void ExportCsv(string path, List<DistributedRow> rows)
@@ -980,7 +968,7 @@ namespace NMKMTO.Functions
       var headers = new[]
       {
         "No",
-        "Sequence",
+        "Pour",
         "Distributed Top Area (m2)",
         "Distributed Bottom Area (m2)",
         "N16-1000 Area (m2)",
@@ -1028,7 +1016,7 @@ namespace NMKMTO.Functions
       List<NMKMTO_ModelSheetRow> sheets)
     {
       string datePrefix = DateTime.Now.ToString("yyMMdd", CultureInfo.InvariantCulture);
-      string buildingName = GetStringParameter(doc.ProjectInformation, "Building Name");
+      string buildingName = GetStringParameter(doc.ProjectInformation, F_MtoNames.Parameters.BuildingName);
       if (string.IsNullOrWhiteSpace(buildingName))
         buildingName = doc.ProjectInformation?.Name ?? string.Empty;
       if (string.IsNullOrWhiteSpace(buildingName))
@@ -1098,6 +1086,21 @@ namespace NMKMTO.Functions
     private static string NormalizeName(string value)
     {
       return (value ?? string.Empty).Trim();
+    }
+
+    private static bool EqualsZoneName(string first, string second)
+    {
+      return string.Equals(
+        NormalizeZoneName(first),
+        NormalizeZoneName(second),
+        StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeZoneName(string value)
+    {
+      return string.Concat((value ?? string.Empty)
+        .Trim()
+        .Where(character => !char.IsWhiteSpace(character)));
     }
 
     private static string FormatNumber(double value)

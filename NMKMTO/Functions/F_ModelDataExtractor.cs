@@ -9,7 +9,6 @@ namespace NMKMTO.Functions
 {
   public static class F_ModelDataExtractor
   {
-    private const string DirectShapeApplicationId = "NMKMTO_MODEL";
     private const double MinSolidVolumeFt3 = 0.0001;
     private const double Ft2ToM2 = 0.09290304;
     private const double Ft3ToM3 = 0.028316846592;
@@ -101,7 +100,7 @@ namespace NMKMTO.Functions
           var row = new NMKMTO_ModelModelDataRow
           {
             No = rowNo++,
-            Pour = region.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase) ? region.Comments : string.Empty,
+            Pour = region.Comments,
             Zone = string.IsNullOrWhiteSpace(region.RincoZone) ? region.Comments : region.RincoZone,
             Level = scope.LevelName,
             FloorAreaM2 = floorAreaM2,
@@ -237,8 +236,8 @@ namespace NMKMTO.Functions
         .Select(region => new FilledRegionData
         {
           Region = region,
-          Comments = GetStringParameter(region, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "Comments"),
-          RincoZone = GetStringParameter(region, "RINCO_ZONE")
+          Comments = GetStringParameter(region, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, F_MtoNames.Parameters.Comments),
+          RincoZone = GetStringParameter(region, F_MtoNames.Parameters.RincoZone)
         })
         .Where(x => !string.IsNullOrWhiteSpace(x.Comments))
         .ToList();
@@ -270,7 +269,7 @@ namespace NMKMTO.Functions
         {
           var floorType = linkDoc.GetElement(floor.GetTypeId());
           string typeName = floorType?.Name ?? string.Empty;
-          bool isSlimdeck = typeName.IndexOf("SLIMDECK", StringComparison.OrdinalIgnoreCase) >= 0;
+          bool isSlimdeck = typeName.IndexOf(F_MtoNames.Keywords.Slimdeck, StringComparison.OrdinalIgnoreCase) >= 0;
           double totalThicknessMm = isSlimdeck ? GetFloorTotalThicknessMm(linkDoc, floor, floorType, warnings) : 0;
 
           foreach (var solid in GetElementSolids(floor))
@@ -318,8 +317,8 @@ namespace NMKMTO.Functions
     {
       Element type = doc.GetElement(element.GetTypeId());
       string typeName = type?.Name ?? string.Empty;
-      return typeName.IndexOf("PRECAST", StringComparison.OrdinalIgnoreCase) >= 0
-        || typeName.IndexOf("PLINTH", StringComparison.OrdinalIgnoreCase) >= 0;
+      return typeName.IndexOf(F_MtoNames.Keywords.Precast, StringComparison.OrdinalIgnoreCase) >= 0
+        || typeName.IndexOf(F_MtoNames.Keywords.Plinth, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static IEnumerable<Solid> GetElementSolids(Element element)
@@ -354,12 +353,9 @@ namespace NMKMTO.Functions
     private static bool IsRegionForSheet(FilledRegionData region, NMKMTO_ModelSheetRow sheet)
     {
       if (string.IsNullOrWhiteSpace(sheet.ZoneName))
-        return true;
+        return false;
 
-      if (region.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase))
-        return EqualsName(region.RincoZone, sheet.ZoneName);
-
-      return EqualsName(region.Comments, sheet.ZoneName);
+      return EqualsZoneName(region.RincoZone, sheet.ZoneName);
     }
 
     private static Level FindLevel(Document doc, string levelName)
@@ -522,7 +518,7 @@ namespace NMKMTO.Functions
       var ids = new FilteredElementCollector(doc)
         .OfClass(typeof(DirectShape))
         .Cast<DirectShape>()
-        .Where(x => x.ApplicationId == DirectShapeApplicationId)
+        .Where(x => x.ApplicationId == F_MtoNames.DirectShapeApplications.Model)
         .Select(x => x.Id)
         .ToList();
 
@@ -536,7 +532,7 @@ namespace NMKMTO.Functions
       foreach (var item in directShapeItems.Where(x => x.Solids.Any(solid => solid.Volume > MinSolidVolumeFt3)))
       {
         var directShape = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-        directShape.ApplicationId = DirectShapeApplicationId;
+        directShape.ApplicationId = F_MtoNames.DirectShapeApplications.Model;
         directShape.ApplicationDataId = index.ToString(CultureInfo.InvariantCulture);
         directShape.Name = string.IsNullOrWhiteSpace(item.Name) ? $"NMKMTO MODEL {index}" : item.Name;
         directShape.SetShape(item.Solids.Cast<GeometryObject>().ToList());
@@ -567,7 +563,7 @@ namespace NMKMTO.Functions
     private static void SetComments(Element element, string comments)
     {
       Parameter parameter = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-        ?? element.LookupParameter("Comments");
+        ?? element.LookupParameter(F_MtoNames.Parameters.Comments);
 
       if (parameter != null && !parameter.IsReadOnly)
         parameter.Set(comments);
@@ -589,7 +585,7 @@ namespace NMKMTO.Functions
     private static void ExportCsv(string path, List<NMKMTO_ModelModelDataRow> rows)
     {
       var builder = new StringBuilder();
-      var headers = new[] { "No", "Sequence", "Distributed Top Area (m2)", "Distributed Bottom Area (m2)", "N16-1000 Area (m2)", "Floor Area (m2)", "Floor Volume (m3)" };
+      var headers = new[] { "No", "Pour", "Distributed Top Area (m2)", "Distributed Bottom Area (m2)", "N16-1000 Area (m2)", "Floor Area (m2)", "Floor Volume (m3)" };
 
       builder.AppendLine(string.Join(",", headers.Select(EscapeCsv)));
 
@@ -677,7 +673,7 @@ namespace NMKMTO.Functions
     private static string GetProjectInformationName(Document doc)
     {
       ProjectInfo projectInformation = doc.ProjectInformation;
-      string buildingName = GetStringParameter(projectInformation, "Building Name");
+      string buildingName = GetStringParameter(projectInformation, F_MtoNames.Parameters.BuildingName);
 
       if (string.IsNullOrWhiteSpace(buildingName))
         buildingName = projectInformation?.Name ?? string.Empty;
@@ -755,6 +751,18 @@ namespace NMKMTO.Functions
     private static string NormalizeName(string value)
     {
       return (value ?? string.Empty).Trim();
+    }
+
+    private static bool EqualsZoneName(string first, string second)
+    {
+      return string.Equals(NormalizeZoneName(first), NormalizeZoneName(second), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeZoneName(string value)
+    {
+      return string.Concat((value ?? string.Empty)
+        .Trim()
+        .Where(character => !char.IsWhiteSpace(character)));
     }
 
     private static string FormatBlankZero(double value)

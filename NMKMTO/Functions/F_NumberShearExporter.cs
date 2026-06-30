@@ -13,7 +13,7 @@ namespace NMKMTO.Functions
 
       Directory.CreateDirectory(exportFolder);
       var shearSheets = sheets
-        .Where(sheet => sheet.SheetName.IndexOf("SHEAR", StringComparison.OrdinalIgnoreCase) >= 0)
+        .Where(sheet => sheet.SheetName.IndexOf(F_MtoNames.Keywords.Shear, StringComparison.OrdinalIgnoreCase) >= 0)
         .OrderBy(sheet => sheet.SheetNumber, StringComparer.OrdinalIgnoreCase)
         .ToList();
 

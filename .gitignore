@@ -8,6 +8,7 @@ obj/
 
 # Revit/local build artifacts
 *.addin.user
+*.rvt
 
 # Export/output files
 *.csv

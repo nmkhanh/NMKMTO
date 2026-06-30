@@ -3,6 +3,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using NMKMTO.Functions;
 using System.Windows;
+using TaskDialog = Autodesk.Revit.UI.TaskDialog;
 
 namespace NMKMTO
 {

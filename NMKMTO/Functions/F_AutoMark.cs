@@ -37,15 +37,15 @@ namespace NMKMTO.Functions
             bool isBottom = GetYesNo(element, "Bottom");
             bool isTop = GetYesNo(element, "Top");
             bool isShear = GetYesNo(element, "Shear");
-            bool isConsBar = GetYesNo(element, "Cons Bar");
-            string comments = GetStringParameter(element, "Comments");
+            bool isConsBar = GetYesNo(element, F_MtoNames.Parameters.ConsBar);
+            string comments = GetStringParameter(element, F_MtoNames.Parameters.Comments);
             string familyName = element.Symbol?.Family?.Name ?? string.Empty;
 
             if ((isBottom || isTop) && isConsBar)
             {
-              if (Contains(comments, "C.J"))
+              if (Contains(comments, F_MtoNames.Keywords.Cj))
                 cjElements.Add(element);
-              else if (Contains(comments, "U'BAR"))
+              else if (Contains(comments, F_MtoNames.Keywords.UBar))
                 consBarUElements.Add(element);
               else
                 consBarSElements.Add(element);
@@ -56,13 +56,13 @@ namespace NMKMTO.Functions
             if (!isBottom && !isTop && !isShear)
               continue;
 
-            if (familyName.StartsWith("Reo__ZBar", StringComparison.OrdinalIgnoreCase) && HasLocationPoint(element))
+            if (F_MtoNames.IsZBarFamily(familyName) && HasLocationPoint(element))
             {
               zbarElements.Add(element);
             }
-            else if (familyName.StartsWith("Reo__Reinforcement_DistributionAdjustable", StringComparison.OrdinalIgnoreCase) && HasLocationPoint(element))
+            else if (F_MtoNames.IsDistributionFamily(familyName) && HasLocationPoint(element))
             {
-              if (Contains(comments, "C.J"))
+              if (Contains(comments, F_MtoNames.Keywords.Cj))
                 cjElements.Add(element);
               else
                 normalElements.Add(element);
@@ -111,16 +111,16 @@ namespace NMKMTO.Functions
       for (int i = 0; i < elements.Count; i++)
       {
         string mark = string.IsNullOrWhiteSpace(suffix) ? (i + 1).ToString() : $"{i + 1}{suffix}";
-        Parameter parameter = elements[i].LookupParameter("Mark");
+        Parameter parameter = elements[i].LookupParameter(F_MtoNames.Parameters.Mark);
         if (parameter == null)
         {
-          warnings.Add($"View '{view.Name}', ElementId {elements[i].Id.Value}: missing Mark parameter.");
+          warnings.Add($"View '{view.Name}', ElementId {elements[i].Id.Value}: missing {F_MtoNames.Parameters.Mark} parameter.");
           continue;
         }
 
         if (parameter.IsReadOnly)
         {
-          warnings.Add($"View '{view.Name}', ElementId {elements[i].Id.Value}: Mark parameter is read-only.");
+          warnings.Add($"View '{view.Name}', ElementId {elements[i].Id.Value}: {F_MtoNames.Parameters.Mark} parameter is read-only.");
           continue;
         }
 

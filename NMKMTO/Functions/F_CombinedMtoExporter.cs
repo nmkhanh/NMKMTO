@@ -37,6 +37,7 @@ namespace NMKMTO.Functions
       var warningPaths = new List<string>();
       var allWarnings = new List<string>();
       string reoCsvContent = string.Empty;
+      string earthingHeader = "Earthing Reo Area (m2)";
       int reoRowCount = 0;
 
       if (exportDistributedReo)
@@ -65,6 +66,8 @@ namespace NMKMTO.Functions
           sheets,
           options,
           writeDataCsv: false);
+        if (!string.IsNullOrWhiteSpace(result.EarthingHeader))
+          earthingHeader = result.EarthingHeader;
         foreach (NMKMTO_ModelModelDataRow source in result.Rows)
         {
           string sequence = GetSequence(source);
@@ -110,7 +113,7 @@ namespace NMKMTO.Functions
       }
 
       string dateSuffix = DateTime.Now.ToString("yyMMdd", CultureInfo.InvariantCulture);
-      string buildingName = doc.ProjectInformation?.LookupParameter("Building Name")?.AsString()?.Trim()
+      string buildingName = doc.ProjectInformation?.LookupParameter(F_MtoNames.Parameters.BuildingName)?.AsString()?.Trim()
         ?? doc.ProjectInformation?.Name
         ?? doc.Title;
       List<string> levels = sheets
@@ -129,7 +132,16 @@ namespace NMKMTO.Functions
       if (hasAreaOptions)
       {
         builder.AppendLine("AREA");
-        builder.AppendLine("No,Sequence,Distributed Top Area (m2),Distributed Bottom Area (m2),N16-1000 Area (m2),Floor Area (m2),Floor Volume (m3)");
+        builder.AppendLine(string.Join(",", new[]
+        {
+          "No",
+          "Pour",
+          "Distributed Top Area (m2)",
+          "Distributed Bottom Area (m2)",
+          earthingHeader,
+          "Floor Area (m2)",
+          "Floor Volume (m3)"
+        }.Select(EscapeCsv)));
         int no = 1;
         foreach (string sequence in areaSequenceOrder)
         {

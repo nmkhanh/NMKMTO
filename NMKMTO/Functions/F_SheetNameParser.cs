@@ -1,4 +1,5 @@
 using NMKMTO.Models;
+using System.Text.RegularExpressions;
 
 namespace NMKMTO.Functions
 {
@@ -12,10 +13,17 @@ namespace NMKMTO.Functions
         .Select(x => x.Trim())
         .ToArray();
 
-      if (parts.Length > 0)
+      string scopePart = parts.Length > 0 ? parts[0] : sheetName;
+      var levelMatch = Regex.Match(scopePart, @"\bLEVEL\s+[A-Z0-9.]+\b", RegexOptions.IgnoreCase);
+      if (levelMatch.Success)
+        info.LevelName = levelMatch.Value.Trim();
+      else if (parts.Length > 0)
         info.LevelName = parts[0];
 
-      if (parts.Length > 1 && parts[1].StartsWith("ZONE", StringComparison.OrdinalIgnoreCase))
+      var zoneMatch = Regex.Match(scopePart, @"\bZONE\s+[^-]+", RegexOptions.IgnoreCase);
+      if (zoneMatch.Success)
+        info.ZoneName = zoneMatch.Value.Trim();
+      else if (parts.Length > 1 && parts[1].StartsWith(F_MtoNames.Keywords.Zone, StringComparison.OrdinalIgnoreCase))
         info.ZoneName = parts[1];
 
       var locationPart = parts.Length > 0 ? parts[parts.Length - 1] : string.Empty;
@@ -26,13 +34,15 @@ namespace NMKMTO.Functions
 
     private static MtoSheetReinforcementLocation ParseLocation(string value)
     {
-      return value.ToUpperInvariant() switch
-      {
-        "TOP REIN" => MtoSheetReinforcementLocation.TopRein,
-        "BOTTOM REIN" => MtoSheetReinforcementLocation.BottomRein,
-        "SHEAR REIN" => MtoSheetReinforcementLocation.ShearRein,
-        _ => MtoSheetReinforcementLocation.Unknown
-      };
+      string text = value.ToUpperInvariant();
+      if (text.Contains(F_MtoNames.Keywords.Top))
+        return MtoSheetReinforcementLocation.TopRein;
+      if (text.Contains(F_MtoNames.Keywords.Bottom))
+        return MtoSheetReinforcementLocation.BottomRein;
+      if (text.Contains(F_MtoNames.Keywords.Shear))
+        return MtoSheetReinforcementLocation.ShearRein;
+
+      return MtoSheetReinforcementLocation.Unknown;
     }
   }
 }

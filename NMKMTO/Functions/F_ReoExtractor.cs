@@ -59,17 +59,26 @@ namespace NMKMTO.Functions
       if (sheets.Count == 0)
         throw new InvalidOperationException("Please select at least one sheet.");
 
-      const string zBarFamilyName = "Reo__ZBar[Rinco]";
-      const string distributionFamilyName = "Reo__Reinforcement_DistributionAdjustable[Rinco] 1";
-      const string reoGraphicStyleName = "Reo";
-      const string directShapeApplicationId = "NMKMTO_REO_MTO";
       double minimumVolume = UnitUtils.ConvertToInternalUnits(1, UnitTypeId.CubicMillimeters);
       var warnings = new List<string>();
       var rows = new List<ReoRow>();
 
+      string NormalizeZoneKey(string value)
+      {
+        return string.Concat((value ?? string.Empty)
+          .Trim()
+          .Where(character => !char.IsWhiteSpace(character)))
+          .ToUpperInvariant();
+      }
+
+      bool EqualsZoneName(string first, string second)
+      {
+        return string.Equals(NormalizeZoneKey(first), NormalizeZoneKey(second), StringComparison.OrdinalIgnoreCase);
+      }
+
       #endregion
 
-      #region 02 - Detect POUR, ZONE, or LEVEL structure from the common MTO area view
+      #region 02 - Collect MTO regions: RINCO_ZONE is the zone key and Comments is the Pour value
 
       Autodesk.Revit.DB.View mtoView = new FilteredElementCollector(doc)
         .OfClass(typeof(Autodesk.Revit.DB.View))
@@ -86,7 +95,7 @@ namespace NMKMTO.Functions
         .Cast<FilledRegion>())
       {
         string comments = region.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString()
-          ?? region.LookupParameter("Comments")?.AsString()
+          ?? region.LookupParameter(F_MtoNames.Parameters.Comments)?.AsString()
           ?? string.Empty;
         comments = comments.Trim();
         if (string.IsNullOrWhiteSpace(comments))
@@ -96,14 +105,9 @@ namespace NMKMTO.Functions
         {
           Region = region,
           Pour = comments,
-          Zone = region.LookupParameter("RINCO_ZONE")?.AsString()?.Trim() ?? string.Empty
+          Zone = region.LookupParameter(F_MtoNames.Parameters.RincoZone)?.AsString()?.Trim() ?? string.Empty
         });
       }
-
-      bool projectUsesPour = regions.Any(region =>
-        region.Pour.StartsWith("POUR", StringComparison.OrdinalIgnoreCase));
-      bool projectUsesZone = !projectUsesPour && regions.Any(region =>
-        region.Pour.StartsWith("ZONE", StringComparison.OrdinalIgnoreCase));
 
       #endregion
 
@@ -112,12 +116,12 @@ namespace NMKMTO.Functions
         #region 03 - Identify TOP, BOTTOM, or SHEAR from SheetName and collect OVER views
 
         string sheetName = sheetRow.SheetName ?? string.Empty;
-        string layer = sheetName.IndexOf("SHEAR", StringComparison.OrdinalIgnoreCase) >= 0
-          ? "SHEAR"
-          : sheetName.IndexOf("BOTTOM", StringComparison.OrdinalIgnoreCase) >= 0
-            ? "BOTTOM"
-            : sheetName.IndexOf("TOP", StringComparison.OrdinalIgnoreCase) >= 0
-              ? "TOP"
+        string layer = sheetName.IndexOf(F_MtoNames.Keywords.Shear, StringComparison.OrdinalIgnoreCase) >= 0
+          ? F_MtoNames.Keywords.Shear
+          : sheetName.IndexOf(F_MtoNames.Keywords.Bottom, StringComparison.OrdinalIgnoreCase) >= 0
+            ? F_MtoNames.Keywords.Bottom
+            : sheetName.IndexOf(F_MtoNames.Keywords.Top, StringComparison.OrdinalIgnoreCase) >= 0
+              ? F_MtoNames.Keywords.Top
               : string.Empty;
 
         if (string.IsNullOrWhiteSpace(layer))
@@ -169,10 +173,8 @@ namespace NMKMTO.Functions
 
         List<RegionData> sheetRegions = regions
           .Where(region =>
-            projectUsesPour
-            && region.Pour.StartsWith("POUR", StringComparison.OrdinalIgnoreCase)
-            && (string.IsNullOrWhiteSpace(sheetRow.ZoneName)
-              || string.Equals(region.Zone, sheetRow.ZoneName, StringComparison.OrdinalIgnoreCase)))
+            !string.IsNullOrWhiteSpace(sheetRow.ZoneName)
+            && EqualsZoneName(region.Zone, sheetRow.ZoneName))
           .ToList();
 
         #endregion
@@ -186,6 +188,15 @@ namespace NMKMTO.Functions
             .OfClass(typeof(IndependentTag))
             .Cast<IndependentTag>())
           {
+            Element tagType = doc.GetElement(tag.GetTypeId());
+            string tagTypeName = tagType?.Name ?? string.Empty;
+            string tagFamilyName = (tagType as FamilySymbol)?.Family?.Name ?? string.Empty;
+            if (string.Equals(tagTypeName, F_MtoNames.TagTypes.Reo, StringComparison.OrdinalIgnoreCase)
+              || string.Equals(tagFamilyName, F_MtoNames.TagFamilies.Reo, StringComparison.OrdinalIgnoreCase))
+            {
+              continue;
+            }
+
             string tagText;
             try
             {
@@ -241,8 +252,7 @@ namespace NMKMTO.Functions
             .Where(element =>
             {
               string familyName = element.Symbol?.Family?.Name ?? string.Empty;
-              return string.Equals(familyName, zBarFamilyName, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(familyName, distributionFamilyName, StringComparison.OrdinalIgnoreCase);
+              return F_MtoNames.IsZBarFamily(familyName) || F_MtoNames.IsDistributionFamily(familyName);
             })
             .ToList();
 
@@ -251,10 +261,7 @@ namespace NMKMTO.Functions
             if (!processedIds.Add(element.Id))
               continue;
 
-            bool isZBar = string.Equals(
-              element.Symbol?.Family?.Name,
-              zBarFamilyName,
-              StringComparison.OrdinalIgnoreCase);
+            bool isZBar = F_MtoNames.IsZBarFamily(element.Symbol?.Family?.Name);
 
             #endregion
 
@@ -277,8 +284,8 @@ namespace NMKMTO.Functions
                     ? null
                     : doc.GetElement(directCurve.GraphicsStyleId) as GraphicsStyle;
                   if (style != null
-                    && (string.Equals(style.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(style.GraphicsStyleCategory?.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)))
+                    && (string.Equals(style.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(style.GraphicsStyleCategory?.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)))
                   {
                     reoCurves.Add(directCurve);
                   }
@@ -300,8 +307,8 @@ namespace NMKMTO.Functions
                     ? null
                     : doc.GetElement(instanceCurve.GraphicsStyleId) as GraphicsStyle;
                   if (style != null
-                    && (string.Equals(style.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(style.GraphicsStyleCategory?.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)))
+                    && (string.Equals(style.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(style.GraphicsStyleCategory?.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)))
                   {
                     reoCurves.Add(instanceCurve);
                   }
@@ -319,11 +326,11 @@ namespace NMKMTO.Functions
 
             #region 07 - Read CSV values from instance parameters only
 
-            string mark = element.LookupParameter("Mark")?.AsString()?.Trim() ?? string.Empty;
+            string mark = element.LookupParameter(F_MtoNames.Parameters.Mark)?.AsString()?.Trim() ?? string.Empty;
             string comments = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString()
-              ?? element.LookupParameter("Comments")?.AsString()
+              ?? element.LookupParameter(F_MtoNames.Parameters.Comments)?.AsString()
               ?? string.Empty;
-            string notation = element.LookupParameter("Notation")?.AsString()?.Trim() ?? string.Empty;
+            string notation = element.LookupParameter(F_MtoNames.Parameters.Notation)?.AsString()?.Trim() ?? string.Empty;
 
             string tags = tagTextsByElementId.TryGetValue(element.Id, out List<string> elementTagTexts)
               ? string.Join("\n", elementTagTexts)
@@ -345,14 +352,14 @@ namespace NMKMTO.Functions
             double cogCount = 0;
             double barCount = 0;
 
-            Parameter measureParameter = element.LookupParameter("Shared_Measure");
-            Parameter reolenParameter = element.LookupParameter("Shared_Length");
-            Parameter spacingParameter = element.LookupParameter("Shared_Spacing");
-            Parameter thicknessParameter = element.LookupParameter("Thickness");
-            Parameter diameterParameter = element.LookupParameter("Shared_Diameter");
-            Parameter cogCountParameter = element.LookupParameter("Shared_Cog_Count");
-            Parameter barCountParameter = element.LookupParameter("Shared_No. Bars");
-            Parameter spliceParameter = element.LookupParameter("Splice");
+            Parameter measureParameter = element.LookupParameter(F_MtoNames.Parameters.Measure);
+            Parameter reolenParameter = element.LookupParameter(F_MtoNames.Parameters.Length);
+            Parameter spacingParameter = element.LookupParameter(F_MtoNames.Parameters.Spacing);
+            Parameter thicknessParameter = element.LookupParameter(F_MtoNames.Parameters.Thickness);
+            Parameter diameterParameter = element.LookupParameter(F_MtoNames.Parameters.Diameter);
+            Parameter cogCountParameter = element.LookupParameter(F_MtoNames.Parameters.CogCount);
+            Parameter barCountParameter = element.LookupParameter(F_MtoNames.Parameters.NoBars);
+            Parameter spliceParameter = element.LookupParameter(F_MtoNames.Parameters.Splice);
 
             if (measureParameter?.StorageType == StorageType.Double)
               measure = UnitUtils.ConvertFromInternalUnits(measureParameter.AsDouble(), UnitTypeId.Millimeters);
@@ -401,13 +408,13 @@ namespace NMKMTO.Functions
             string type;
             if (isBeam)
               type = "BEAM";
-            else if (mark.IndexOf("S C.J", StringComparison.OrdinalIgnoreCase) >= 0)
+            else if (mark.IndexOf(F_MtoNames.Keywords.Scj, StringComparison.OrdinalIgnoreCase) >= 0)
               type = "SURELOK";
-            else if (mark.IndexOf("U C.J", StringComparison.OrdinalIgnoreCase) >= 0)
+            else if (mark.IndexOf(F_MtoNames.Keywords.Ucj, StringComparison.OrdinalIgnoreCase) >= 0)
               type = "U BAR";
-            else if (mark.IndexOf("C.J", StringComparison.OrdinalIgnoreCase) >= 0 && layer == "TOP")
+            else if (mark.IndexOf(F_MtoNames.Keywords.Cj, StringComparison.OrdinalIgnoreCase) >= 0 && layer == F_MtoNames.Keywords.Top)
               type = "CJ TOP";
-            else if (mark.IndexOf("C.J", StringComparison.OrdinalIgnoreCase) >= 0 && layer == "BOTTOM")
+            else if (mark.IndexOf(F_MtoNames.Keywords.Cj, StringComparison.OrdinalIgnoreCase) >= 0 && layer == F_MtoNames.Keywords.Bottom)
               type = "CJ BOTTOM";
             else
               type = layer;
@@ -419,7 +426,7 @@ namespace NMKMTO.Functions
             var reoSolids = new List<Solid>();
             if (diameter <= 0)
             {
-              warnings.Add($"View '{view.Name}', ElementId {element.Id.Value}: Shared_Diameter is zero.");
+              warnings.Add($"View '{view.Name}', ElementId {element.Id.Value}: {F_MtoNames.Parameters.Diameter} is zero.");
             }
             else
             {
@@ -514,29 +521,17 @@ namespace NMKMTO.Functions
               }
             }
 
-            string selectedPour;
-            if (projectUsesPour)
-            {
-              selectedPour = intersectingPours
-                .OrderBy(pour =>
-                {
-                  Match match = Regex.Match(pour, @"\d+");
-                  return match.Success && int.TryParse(match.Value, out int number) ? number : int.MaxValue;
-                })
-                .ThenBy(pour => pour, StringComparer.OrdinalIgnoreCase)
-                .FirstOrDefault() ?? string.Empty;
-            }
-            else if (projectUsesZone)
-            {
-              selectedPour = sheetRow.ZoneName;
-            }
-            else
-            {
-              selectedPour = sheetRow.LevelName;
-            }
+            string selectedPour = intersectingPours
+              .OrderBy(pour =>
+              {
+                Match match = Regex.Match(pour, @"\d+");
+                return match.Success && int.TryParse(match.Value, out int number) ? number : int.MaxValue;
+              })
+              .ThenBy(pour => pour, StringComparer.OrdinalIgnoreCase)
+              .FirstOrDefault() ?? string.Empty;
 
-            if (projectUsesPour && string.IsNullOrWhiteSpace(selectedPour))
-              warnings.Add($"View '{view.Name}', ElementId {element.Id.Value}: Reo curve does not intersect a matching POUR region.");
+            if (string.IsNullOrWhiteSpace(selectedPour))
+              warnings.Add($"View '{view.Name}', ElementId {element.Id.Value}: Reo curve does not intersect a matching MTO region.");
 
             #endregion
 
@@ -603,7 +598,7 @@ namespace NMKMTO.Functions
           List<ElementId> oldIds = new FilteredElementCollector(doc)
             .OfClass(typeof(DirectShape))
             .Cast<DirectShape>()
-            .Where(shape => shape.ApplicationId == directShapeApplicationId)
+            .Where(shape => shape.ApplicationId == F_MtoNames.DirectShapeApplications.Reo)
             .Select(shape => shape.Id)
             .ToList();
           if (oldIds.Count > 0)
@@ -611,7 +606,7 @@ namespace NMKMTO.Functions
 
           int shapeIndex = 1;
           var shapeGroups = rows
-            .Where(row => row.Layer != "SHEAR" && row.Solids.Count > 0)
+            .Where(row => row.Layer != F_MtoNames.Keywords.Shear && row.Solids.Count > 0)
             .GroupBy(row => $"{row.Level}|{row.Zone}|{row.Pour}|{row.Layer}", StringComparer.OrdinalIgnoreCase);
 
           foreach (var shapeGroup in shapeGroups)
@@ -624,13 +619,13 @@ namespace NMKMTO.Functions
             DirectShape shape = DirectShape.CreateElement(
               doc,
               new ElementId(BuiltInCategory.OST_GenericModel));
-            shape.ApplicationId = directShapeApplicationId;
+            shape.ApplicationId = F_MtoNames.DirectShapeApplications.Reo;
             shape.ApplicationDataId = shapeIndex.ToString(CultureInfo.InvariantCulture);
             shape.Name = $"NMKMTO REO {first.Layer} {first.Zone} {first.Pour}".Trim();
             shape.SetShape(solids.Cast<GeometryObject>().ToList());
 
             Parameter commentsParameter = shape.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-              ?? shape.LookupParameter("Comments");
+              ?? shape.LookupParameter(F_MtoNames.Parameters.Comments);
             if (commentsParameter != null && !commentsParameter.IsReadOnly)
               commentsParameter.Set($"REO | Level: {first.Level} | Zone: {first.Zone} | Pour: {first.Pour} | Layer: {first.Layer}");
             shapeIndex++;
@@ -645,7 +640,7 @@ namespace NMKMTO.Functions
       #region 14 - Export the requested 15-column CSV without WeightPerMeter
 
       string datePrefix = DateTime.Now.ToString("yyMMdd", CultureInfo.InvariantCulture);
-      string buildingName = doc.ProjectInformation?.LookupParameter("Building Name")?.AsString()?.Trim()
+      string buildingName = doc.ProjectInformation?.LookupParameter(F_MtoNames.Parameters.BuildingName)?.AsString()?.Trim()
         ?? doc.ProjectInformation?.Name
         ?? doc.Title;
       List<string> levelNames = sheets
@@ -660,17 +655,11 @@ namespace NMKMTO.Functions
 
       string exportPath = Path.Combine(options.ExportFolder, $"{fileName}.csv");
       var csv = new StringBuilder();
-      csv.AppendLine("No,ElementId,Pour,Mark,Tags,Type,Measure (mm),Reolen (mm),Spacing (mm),Thickness (mm),Diameter (mm),CogCount,Splice,BarCount,SheetNumber");
+      csv.AppendLine("#,ElementId,Element,Mark,Tags,Type,Measure (mm),Reo Len (mm),Spacing (mm),Thickness (mm),Diameter (mm),#COG,Splice,#BAR,SheetNumber");
 
       foreach (ReoRow row in rows)
       {
-        string pourValue = row.Pour.StartsWith("POUR", StringComparison.OrdinalIgnoreCase)
-          ? string.IsNullOrWhiteSpace(row.Zone)
-            ? row.Pour
-            : $"{row.Zone} - {row.Pour}"
-          : !string.IsNullOrWhiteSpace(row.Zone)
-            ? row.Zone
-            : row.Level;
+        string pourValue = row.Pour;
 
         string[] values =
         {

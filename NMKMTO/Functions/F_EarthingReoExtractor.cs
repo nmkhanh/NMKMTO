@@ -9,7 +9,6 @@ namespace NMKMTO.Functions
 {
   public static class F_EarthingReoExtractor
   {
-    private const string DirectShapeApplicationId = "NMKMTO_EARTHING_REO";
     private const double MinSolidVolumeFt3 = 0.0001;
     private const double Ft2ToM2 = 0.09290304;
     private const double MmToFt = 1.0 / 304.8;
@@ -41,7 +40,11 @@ namespace NMKMTO.Functions
 
       var rows = new List<NMKMTO_ModelModelDataRow>();
       var directShapeItems = new List<DirectShapeData>();
-      var earthingTypeNames = new SortedSet<string>(NaturalStringComparer.Instance);
+      var earthingTypeNames = new SortedSet<string>(
+        underRegions
+          .Select(region => region.TypeName)
+          .Where(typeName => !string.IsNullOrWhiteSpace(typeName)),
+        NaturalStringComparer.Instance);
       var scopes = sheets
         .GroupBy(sheet => $"{NormalizeName(sheet.LevelName)}|{NormalizeName(sheet.ZoneName)}", StringComparer.OrdinalIgnoreCase)
         .Select(group => group.First())
@@ -84,7 +87,7 @@ namespace NMKMTO.Functions
           var row = new NMKMTO_ModelModelDataRow
           {
             No = rowNo++,
-            Pour = mtoRegion.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase) ? mtoRegion.Comments : string.Empty,
+            Pour = mtoRegion.Comments,
             Zone = string.IsNullOrWhiteSpace(mtoRegion.RincoZone) ? mtoRegion.Comments : mtoRegion.RincoZone,
             Level = scope.LevelName,
             N16_1000AreaM2 = earthingAreaM2
@@ -133,6 +136,7 @@ namespace NMKMTO.Functions
       {
         SheetCount = sheets.Count,
         EarthingAreaM2 = rows.Sum(x => x.N16_1000AreaM2),
+        EarthingHeader = earthingHeader,
         ExportPath = writeDataCsv ? exportPath : string.Empty,
         WarningPath = warningPath,
         Message = warnings.Count > 0
@@ -184,8 +188,8 @@ namespace NMKMTO.Functions
         .Select(region => new FilledRegionData
         {
           Region = region,
-          Comments = GetStringParameter(region, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, "Comments"),
-          RincoZone = GetStringParameter(region, "RINCO_ZONE"),
+          Comments = GetStringParameter(region, BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS, F_MtoNames.Parameters.Comments),
+          RincoZone = GetStringParameter(region, F_MtoNames.Parameters.RincoZone),
           TypeName = doc.GetElement(region.GetTypeId())?.Name ?? "EARTHING REO"
         })
         .Where(x => !string.IsNullOrWhiteSpace(x.Comments))
@@ -232,17 +236,14 @@ namespace NMKMTO.Functions
     private static bool IsRegionForSheet(FilledRegionData region, NMKMTO_ModelSheetRow sheet)
     {
       if (string.IsNullOrWhiteSpace(sheet.ZoneName))
-        return true;
+        return false;
 
-      if (region.Comments.StartsWith("POUR", StringComparison.OrdinalIgnoreCase))
-        return EqualsName(region.RincoZone, sheet.ZoneName);
-
-      return EqualsName(region.Comments, sheet.ZoneName);
+      return EqualsZoneName(region.RincoZone, sheet.ZoneName);
     }
 
     private static bool IsUnderRegionForScope(FilledRegionData region, NMKMTO_ModelSheetRow scope)
     {
-      return string.IsNullOrWhiteSpace(scope.ZoneName) || EqualsName(region.RincoZone, scope.ZoneName);
+      return !string.IsNullOrWhiteSpace(scope.ZoneName) && EqualsZoneName(region.RincoZone, scope.ZoneName);
     }
 
     private static Level FindLevel(Document doc, string levelName)
@@ -347,7 +348,7 @@ namespace NMKMTO.Functions
       var ids = new FilteredElementCollector(doc)
         .OfClass(typeof(DirectShape))
         .Cast<DirectShape>()
-        .Where(x => x.ApplicationId == DirectShapeApplicationId)
+        .Where(x => x.ApplicationId == F_MtoNames.DirectShapeApplications.EarthingReo)
         .Select(x => x.Id)
         .ToList();
 
@@ -361,7 +362,7 @@ namespace NMKMTO.Functions
       foreach (var item in directShapeItems.Where(x => x.Solids.Any(solid => solid.Volume > MinSolidVolumeFt3)))
       {
         var directShape = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-        directShape.ApplicationId = DirectShapeApplicationId;
+        directShape.ApplicationId = F_MtoNames.DirectShapeApplications.EarthingReo;
         directShape.ApplicationDataId = index.ToString(CultureInfo.InvariantCulture);
         directShape.Name = item.Name;
         directShape.SetShape(item.Solids.Cast<GeometryObject>().ToList());
@@ -377,7 +378,7 @@ namespace NMKMTO.Functions
 
     private static void SetComments(Element element, string comments)
     {
-      Parameter parameter = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS) ?? element.LookupParameter("Comments");
+      Parameter parameter = element.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS) ?? element.LookupParameter(F_MtoNames.Parameters.Comments);
       if (parameter != null && !parameter.IsReadOnly)
         parameter.Set(comments);
     }
@@ -385,7 +386,7 @@ namespace NMKMTO.Functions
     private static void ExportCsv(string path, List<NMKMTO_ModelModelDataRow> rows, string earthingHeader)
     {
       var builder = new StringBuilder();
-      var headers = new[] { "No", "Sequence", "Distributed Top Area (m2)", "Distributed Bottom Area (m2)", earthingHeader, "Floor Area (m2)", "Floor Volume (m3)" };
+      var headers = new[] { "No", "Pour", "Distributed Top Area (m2)", "Distributed Bottom Area (m2)", earthingHeader, "Floor Area (m2)", "Floor Volume (m3)" };
       builder.AppendLine(string.Join(",", headers.Select(EscapeCsv)));
 
       foreach (var row in rows)
@@ -409,7 +410,7 @@ namespace NMKMTO.Functions
     private static string BuildEarthingHeader(SortedSet<string> typeNames)
     {
       string typeName = typeNames.Count == 0 ? "EARTHING REO" : string.Join(" / ", typeNames);
-      return $"Earthing Reo ({typeName}) (m2)";
+      return $"{typeName} Area (m2)";
     }
 
     private static List<NMKMTO_ModelModelDataRow> SortRows(List<NMKMTO_ModelModelDataRow> rows)
@@ -462,7 +463,7 @@ namespace NMKMTO.Functions
     private static string GetProjectInformationName(Document doc)
     {
       ProjectInfo projectInformation = doc.ProjectInformation;
-      string buildingName = GetStringParameter(projectInformation, "Building Name");
+      string buildingName = GetStringParameter(projectInformation, F_MtoNames.Parameters.BuildingName);
       if (string.IsNullOrWhiteSpace(buildingName))
         buildingName = projectInformation?.Name ?? string.Empty;
       if (string.IsNullOrWhiteSpace(buildingName))
@@ -503,6 +504,8 @@ namespace NMKMTO.Functions
     }
 
     private static string NormalizeName(string value) => (value ?? string.Empty).Trim();
+    private static bool EqualsZoneName(string first, string second) => string.Equals(NormalizeZoneName(first), NormalizeZoneName(second), StringComparison.OrdinalIgnoreCase);
+    private static string NormalizeZoneName(string value) => string.Concat((value ?? string.Empty).Trim().Where(character => !char.IsWhiteSpace(character)));
     private static string FormatNumber(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 
     private static string EscapeCsv(string value)

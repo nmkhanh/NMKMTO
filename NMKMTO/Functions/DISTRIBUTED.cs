@@ -133,7 +133,7 @@ namespace NMKMTO.Functions
         directShape.SetShape(nonIntersectingSolids.Cast<GeometryObject>().ToList());
 
         Parameter comments = directShape.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-          ?? directShape.LookupParameter("Comments");
+          ?? directShape.LookupParameter(F_MtoNames.Parameters.Comments);
         if (comments != null && !comments.IsReadOnly)
         {
           comments.Set(

@@ -36,18 +36,13 @@ namespace NMKMTO.Functions
           .Where(instance =>
           {
             string name = instance.Symbol?.Family?.Name ?? string.Empty;
-            return string.Equals(name, "Reo__ZBar[Rinco]", StringComparison.OrdinalIgnoreCase)
-              || string.Equals(name, "Reo__Reinforcement_DistributionAdjustable[Rinco] 1", StringComparison.OrdinalIgnoreCase);
+            return F_MtoNames.IsZBarFamily(name) || F_MtoNames.IsDistributionFamily(name);
           })
           .Select(instance => instance.Id)
           .ToList();
 
       if (sourceIds.Count == 0)
         throw new InvalidOperationException("Please select at least one supported reo family.");
-
-      const string zBarFamilyName = "Reo__ZBar[Rinco]";
-      const string distributionFamilyName = "Reo__Reinforcement_DistributionAdjustable[Rinco] 1";
-      const string reoGraphicStyleName = "Reo";
 
       FilledRegionType baseRegionType = null;
       if (createFilledRegions)
@@ -143,8 +138,8 @@ namespace NMKMTO.Functions
           #region 02 - Identify the two supported family groups and parameters
 
           string familyName = familyInstance.Symbol?.Family?.Name ?? string.Empty;
-          bool isZBar = string.Equals(familyName, zBarFamilyName, StringComparison.OrdinalIgnoreCase);
-          bool isDistribution = string.Equals(familyName, distributionFamilyName, StringComparison.OrdinalIgnoreCase);
+          bool isZBar = F_MtoNames.IsZBarFamily(familyName);
+          bool isDistribution = F_MtoNames.IsDistributionFamily(familyName);
           if (!isZBar && !isDistribution)
           {
             warnings.Add($"ElementId {selectedId}: unsupported family '{familyName}'.");
@@ -175,16 +170,16 @@ namespace NMKMTO.Functions
 
           if (isDistribution)
           {
-            Parameter barFromArrowParameter = element.LookupParameter("Bar From Arrow 1");
-            Parameter arrowLengthParameter = element.LookupParameter("Arrow 1 Length");
+            Parameter barFromArrowParameter = element.LookupParameter(F_MtoNames.Parameters.BarFromArrow1);
+            Parameter arrowLengthParameter = element.LookupParameter(F_MtoNames.Parameters.Arrow1Length);
             if (barFromArrowParameter == null || barFromArrowParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"ElementId {selectedId}: missing length parameter 'Bar From Arrow 1'.");
+              warnings.Add($"ElementId {selectedId}: missing length parameter '{F_MtoNames.Parameters.BarFromArrow1}'.");
               continue;
             }
             if (arrowLengthParameter == null || arrowLengthParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"ElementId {selectedId}: missing length parameter 'Arrow 1 Length'.");
+              warnings.Add($"ElementId {selectedId}: missing length parameter '{F_MtoNames.Parameters.Arrow1Length}'.");
               continue;
             }
 
@@ -198,22 +193,22 @@ namespace NMKMTO.Functions
 
           else
           {
-            Parameter arrowTopParameter = element.LookupParameter("Arrow Top");
-            Parameter arrowBotParameter = element.LookupParameter("Arrow Bot");
-            Parameter topBarLocationParameter = element.LookupParameter("Top Bar Location");
+            Parameter arrowTopParameter = element.LookupParameter(F_MtoNames.Parameters.ArrowTop);
+            Parameter arrowBotParameter = element.LookupParameter(F_MtoNames.Parameters.ArrowBot);
+            Parameter topBarLocationParameter = element.LookupParameter(F_MtoNames.Parameters.TopBarLocation);
             if (arrowTopParameter == null || arrowTopParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"ElementId {selectedId}: missing length parameter 'Arrow Top'.");
+              warnings.Add($"ElementId {selectedId}: missing length parameter '{F_MtoNames.Parameters.ArrowTop}'.");
               continue;
             }
             if (arrowBotParameter == null || arrowBotParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"ElementId {selectedId}: missing length parameter 'Arrow Bot'.");
+              warnings.Add($"ElementId {selectedId}: missing length parameter '{F_MtoNames.Parameters.ArrowBot}'.");
               continue;
             }
             if (topBarLocationParameter == null || topBarLocationParameter.StorageType != StorageType.Double)
             {
-              warnings.Add($"ElementId {selectedId}: missing length parameter 'Top Bar Location'.");
+              warnings.Add($"ElementId {selectedId}: missing length parameter '{F_MtoNames.Parameters.TopBarLocation}'.");
               continue;
             }
 
@@ -252,8 +247,8 @@ namespace NMKMTO.Functions
                   ? null
                   : doc.GetElement(directCurve.GraphicsStyleId) as GraphicsStyle;
                 if (directStyle != null
-                  && (string.Equals(directStyle.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(directStyle.GraphicsStyleCategory?.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)))
+                  && (string.Equals(directStyle.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(directStyle.GraphicsStyleCategory?.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)))
                 {
                   reoCurves.Add(directCurve);
                 }
@@ -275,8 +270,8 @@ namespace NMKMTO.Functions
                   ? null
                   : doc.GetElement(instanceCurve.GraphicsStyleId) as GraphicsStyle;
                 if (instanceStyle != null
-                  && (string.Equals(instanceStyle.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(instanceStyle.GraphicsStyleCategory?.Name, reoGraphicStyleName, StringComparison.OrdinalIgnoreCase)))
+                  && (string.Equals(instanceStyle.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(instanceStyle.GraphicsStyleCategory?.Name, F_MtoNames.GraphicStyles.Reo, StringComparison.OrdinalIgnoreCase)))
                 {
                   reoCurves.Add(instanceCurve);
                 }
@@ -286,7 +281,7 @@ namespace NMKMTO.Functions
 
           if (reoCurves.Count == 0)
           {
-            warnings.Add($"ElementId {selectedId}: no curve with GraphicStyle '{reoGraphicStyleName}'.");
+            warnings.Add($"ElementId {selectedId}: no curve with GraphicStyle '{F_MtoNames.GraphicStyles.Reo}'.");
             continue;
           }
 
@@ -335,10 +330,10 @@ namespace NMKMTO.Functions
 
           if (isDistribution)
           {
-            Parameter spliceParameter = element.LookupParameter("Splice");
+            Parameter spliceParameter = element.LookupParameter(F_MtoNames.Parameters.Splice);
             if (spliceParameter == null || spliceParameter.StorageType != StorageType.Integer)
             {
-              warnings.Add($"ElementId {selectedId}: missing Yes/No parameter 'Splice'.");
+              warnings.Add($"ElementId {selectedId}: missing Yes/No parameter '{F_MtoNames.Parameters.Splice}'.");
               continue;
             }
 
@@ -547,7 +542,7 @@ namespace NMKMTO.Functions
             view.Id,
             new List<CurveLoop> { boundary });
 
-          Parameter comments = filledRegion.LookupParameter("Comments");
+          Parameter comments = filledRegion.LookupParameter(F_MtoNames.Parameters.Comments);
           if (comments != null && !comments.IsReadOnly)
           {
             comments.Set(

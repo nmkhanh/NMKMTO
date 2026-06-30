@@ -25,16 +25,16 @@ namespace NMKMTO.Functions
         transaction.Start();
         foreach (var element in elements)
         {
-          Parameter parameter = element.LookupParameter("Cons Bar");
+          Parameter parameter = element.LookupParameter(F_MtoNames.Parameters.ConsBar);
           if (parameter == null)
           {
-            warnings.Add($"ElementId {element.Id.Value}: missing Cons Bar parameter.");
+            warnings.Add($"ElementId {element.Id.Value}: missing {F_MtoNames.Parameters.ConsBar} parameter.");
             continue;
           }
 
           if (parameter.IsReadOnly)
           {
-            warnings.Add($"ElementId {element.Id.Value}: Cons Bar parameter is read-only.");
+            warnings.Add($"ElementId {element.Id.Value}: {F_MtoNames.Parameters.ConsBar} parameter is read-only.");
             continue;
           }
 
@@ -61,7 +61,7 @@ namespace NMKMTO.Functions
     private static bool IsReo(FamilyInstance element)
     {
       string familyName = element.Symbol?.Family?.Name ?? string.Empty;
-      return familyName.StartsWith("Reo__", StringComparison.OrdinalIgnoreCase);
+      return familyName.StartsWith(F_MtoNames.Keywords.ReoFamilyPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasBlueProjectionLineOverride(Autodesk.Revit.DB.View view, Element element)
